@@ -1,5 +1,7 @@
 # AI Weekly Content Publisher with Telegram Approval
 
+![cover](cover.webp)
+
 > Two AI agents write and edit a weekly post. You approve in Telegram. Then it publishes.
 
 ## At a glance

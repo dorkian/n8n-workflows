@@ -1,5 +1,7 @@
 # Real Estate Lead Capture, Reply & Follow-Up
 
+![cover](cover.webp)
+
 > Capture every inquiry, reply within seconds and follow up for several days, automatically.
 
 ## At a glance

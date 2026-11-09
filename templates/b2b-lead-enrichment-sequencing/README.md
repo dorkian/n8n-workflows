@@ -1,5 +1,7 @@
 # B2B Outbound Lead Enrichment & Sequencing
 
+![cover](cover.webp)
+
 > Discover leads, enrich them, generate personalized copy and push them into an outbound sequence.
 
 ## At a glance

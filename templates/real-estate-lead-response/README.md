@@ -1,5 +1,7 @@
 # Real Estate Instant Lead Response & AI Qualifier
 
+![cover](cover.webp)
+
 > Turn an inbound lead into a scored CRM contact and an instant SMS reply.
 
 ## At a glance

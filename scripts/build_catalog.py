@@ -32,7 +32,7 @@ def build():
     write_root(cat)
 
 def write_readme(d, e):
-    L = [f"# {e['title']}", "", f"> {e['tagline']}", "", "## At a glance", "", "| | |", "|---|---|",
+    L = [f"# {e['title']}", "", "![cover](cover.webp)", "", f"> {e['tagline']}", "", "## At a glance", "", "| | |", "|---|---|",
          f"| For | {e['persona']} |", f"| Language | {'Italian' if e['language']=='it' else 'English'} |",
          f"| Workflows | {len(e['workflows'])} {'alternative editions' if e.get('alternatives') else 'workflows'}, {e['total_nodes']} nodes{' each' if e.get('alternatives') else ''} (sticky notes excluded) |",
          f"| Credentials you need | {', '.join('`'+c+'`' for c in e['credentials']) or 'none'} |",
@@ -66,7 +66,7 @@ def write_root(cat):
          f"**{len(cat)} templates, {sum(len(e['workflows']) for e in cat)} workflows, {n} nodes.** The table is generated from the workflow files by `scripts/build_catalog.py`.", "",
          "| | Template | For | Workflows | Nodes | Patterns |", "|---|---|---|---|---|---|"]
     for e in cat:
-        thumb = f"templates/{e['slug']}/{sorted(e['workflows'], key=lambda w: 'followup' in w['diagram'])[0]['diagram']}"
+        thumb = f"templates/{e['slug']}/thumbnail.webp"
         L.append(f"| <a href=\"templates/{e['slug']}\"><img src=\"{thumb}\" width=\"160\" alt=\"{e['title']} diagram\"></a> | [{e['title']}](templates/{e['slug']}) | {e['persona']} | {len(e['workflows'])} | {e['total_nodes']} | {', '.join(e['patterns'])} |")
     L += ["", "## How these are built", "",
           "- [Design principles](docs/design-principles.md): error handling, credential hygiene, human-in-the-loop, node budget.",

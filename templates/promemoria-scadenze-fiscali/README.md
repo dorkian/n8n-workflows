@@ -1,5 +1,7 @@
 # Promemoria Scadenze Fiscali
 
+![cover](cover.webp)
+
 > Automatic email reminders 7 days and 2 days before each client deadline. Italian.
 
 ## At a glance

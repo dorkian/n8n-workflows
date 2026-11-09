@@ -1,5 +1,7 @@
 # White-Label Weekly Client Reports
 
+![cover](cover.webp)
+
 > Email every client a branded PDF performance report every Monday, automatically.
 
 ## At a glance

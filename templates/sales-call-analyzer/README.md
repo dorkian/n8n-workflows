@@ -1,5 +1,7 @@
 # Sales Call Analyzer
 
+![cover](cover.webp)
+
 > Transcribe a finished call, extract sentiment, deal stage and objections, and write the result to your CRM.
 
 ## At a glance
