@@ -64,9 +64,10 @@ def write_root(cat):
          "Production-style n8n workflow templates I designed and built, published as open source (MIT).",
          "Each one is a complete, importable workflow with the integrations, triggers and human-approval or fallback logic spelled out.", "",
          f"**{len(cat)} templates, {sum(len(e['workflows']) for e in cat)} workflows, {n} nodes.** The table is generated from the workflow files by `scripts/build_catalog.py`.", "",
-         "| Template | For | Workflows | Nodes | Patterns |", "|---|---|---|---|---|"]
+         "| | Template | For | Workflows | Nodes | Patterns |", "|---|---|---|---|---|---|"]
     for e in cat:
-        L.append(f"| [{e['title']}](templates/{e['slug']}) | {e['persona']} | {len(e['workflows'])} | {e['total_nodes']} | {', '.join(e['patterns'])} |")
+        thumb = f"templates/{e['slug']}/{sorted(e['workflows'], key=lambda w: 'followup' in w['diagram'])[0]['diagram']}"
+        L.append(f"| <a href=\"templates/{e['slug']}\"><img src=\"{thumb}\" width=\"160\" alt=\"{e['title']} diagram\"></a> | [{e['title']}](templates/{e['slug']}) | {e['persona']} | {len(e['workflows'])} | {e['total_nodes']} | {', '.join(e['patterns'])} |")
     L += ["", "## How these are built", "",
           "- [Design principles](docs/design-principles.md): error handling, credential hygiene, human-in-the-loop, node budget.",
           "- No instance data ships. `scripts/sanitize.py` strips ids, `pinData` and personal emails from an export; `scripts/validate.py` runs in CI and fails on leaked credential ids, emails, tokens or Google Sheet/Drive ids.",
