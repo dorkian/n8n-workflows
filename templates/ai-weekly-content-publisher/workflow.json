@@ -1,0 +1,1553 @@
+{
+  "name": "AI Weekly Content Publisher with Telegram Approval",
+  "nodes": [
+    {
+      "id": "node-01",
+      "name": "Weekly Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        80,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "node-02",
+      "name": "⚙️ CONFIG",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c01",
+              "name": "topic",
+              "value": "AI automation for small businesses",
+              "type": "string"
+            },
+            {
+              "id": "c02",
+              "name": "audience",
+              "value": "entrepreneurs and founders",
+              "type": "string"
+            },
+            {
+              "id": "c03",
+              "name": "tone",
+              "value": "professional yet approachable",
+              "type": "string"
+            },
+            {
+              "id": "c04",
+              "name": "platform",
+              "value": "linkedin",
+              "type": "string"
+            },
+            {
+              "id": "c05",
+              "name": "image_generator",
+              "value": "dalle3",
+              "type": "string"
+            },
+            {
+              "id": "c06",
+              "name": "hitl_channel",
+              "value": "YOUR_TELEGRAM_CHAT_ID",
+              "type": "string"
+            },
+            {
+              "id": "c07",
+              "name": "language",
+              "value": "English",
+              "type": "string"
+            },
+            {
+              "id": "c08",
+              "name": "max_restarts",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "c09",
+              "name": "restart_count",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "c10",
+              "name": "image_regen_max",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "c11",
+              "name": "image_regen_count",
+              "value": 0,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-03",
+      "name": "Agent 1 - Write Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        560,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000,
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', temperature: 0.7, max_tokens: 1200, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'You are an expert content writer specializing in ' + $('⚙️ CONFIG').first().json.platform + ' content for ' + $('⚙️ CONFIG').first().json.audience + '.\\n\\nWrite ONE complete post for this week.\\nTopic: ' + $('⚙️ CONFIG').first().json.topic + '\\nTone: ' + $('⚙️ CONFIG').first().json.tone + '\\nLanguage: ' + $('⚙️ CONFIG').first().json.language + '\\n\\nPlatform requirements:\\n- linkedin: 150-300 words, professional hook, paragraph breaks, 3-5 hashtags\\n- wordpress: full article 500-800 words, H2 subheadings, SEO intro, meta_description\\n- instagram: 100-150 words, emoji-rich, strong CTA, 10-15 hashtags\\n- x: max 260 chars main tweet + 3 reply tweets as thread array\\n\\nReturn ONLY valid JSON, no markdown, no explanation:\\n{\\\"headline\\\":\\\"...\\\",\\\"body\\\":\\\"...\\\",\\\"cta\\\":\\\"...\\\",\\\"hashtags\\\":[\\\"tag1\\\",\\\"tag2\\\"],\\\"meta_description\\\":\\\"...\\\"}' }, { role: 'user', content: 'Write the post now.' }] }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAIAPI_CREDENTIAL_ID",
+          "name": "OpenAi account 4"
+        }
+      }
+    },
+    {
+      "id": "node-04",
+      "name": "Agent 2 - Claude Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000,
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const draft = $('Agent 1 - Write Draft').first().json.choices[0].message.content; const d = JSON.parse(draft); return JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 2000, temperature: 0.4, messages: [{ role: 'user', content: 'You are a senior content editor and visual creative director.\\n\\nPost draft:\\nHeadline: ' + d.headline + '\\nBody: ' + d.body + '\\nCTA: ' + d.cta + '\\nHashtags: ' + (d.hashtags || []).join(', ') + '\\nPlatform: ' + $('⚙️ CONFIG').first().json.platform + '\\n\\nYour tasks:\\n1. Improve for clarity, engagement, and platform-fit. Keep the core idea.\\n2. Strengthen the opening hook — first 2 lines must stop the scroll.\\n3. Write ONE image generation prompt (DALL-E / Flux / SD) — specific: style, mood, colors, composition, subject.\\n\\nReturn ONLY valid JSON:\\n{\"headline\":\"...\",\"body\":\"...\",\"cta\":\"...\",\"hashtags\":[...],\"meta_description\":\"...\",\"image_prompt\":\"...\",\"editor_notes\":\"2-3 sentences on what you changed and why\"}' }] }); })() }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HTTPHEADERAUTH_CREDENTIAL_ID",
+          "name": "Claude AI"
+        }
+      }
+    },
+    {
+      "id": "node-05",
+      "name": "Store All Drafts",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s01",
+              "name": "final_headline",
+              "value": "={{ (function(){ const t=$('Agent 2 - Claude Review').first().json.content[0].text; const o=typeof t==='string'?JSON.parse(t.replace(/^```json\\n?/,'').replace(/\\n?```$/,'').trim()):t; return o.headline; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "s02",
+              "name": "final_body",
+              "value": "={{ (function(){ const t=$('Agent 2 - Claude Review').first().json.content[0].text; const o=typeof t==='string'?JSON.parse(t.replace(/^```json\\n?/,'').replace(/\\n?```$/,'').trim()):t; return o.body; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "s03",
+              "name": "final_cta",
+              "value": "={{ (function(){ const t=$('Agent 2 - Claude Review').first().json.content[0].text; const o=typeof t==='string'?JSON.parse(t.replace(/^```json\\n?/,'').replace(/\\n?```$/,'').trim()):t; return o.cta; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "s04",
+              "name": "final_hashtags",
+              "value": "={{ (function(){ const t=$('Agent 2 - Claude Review').first().json.content[0].text; const o=typeof t==='string'?JSON.parse(t.replace(/^```json\\n?/,'').replace(/\\n?```$/,'').trim()):t; return Array.isArray(o.hashtags)?o.hashtags.join(' '):String(o.hashtags||''); })() }}",
+              "type": "string"
+            },
+            {
+              "id": "s05",
+              "name": "final_meta",
+              "value": "={{ (function(){ const t=$('Agent 2 - Claude Review').first().json.content[0].text; const o=typeof t==='string'?JSON.parse(t.replace(/^```json\\n?/,'').replace(/\\n?```$/,'').trim()):t; return o.meta_description; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "s06",
+              "name": "image_prompt",
+              "value": "={{ (function(){ const t=$('Agent 2 - Claude Review').first().json.content[0].text; const o=typeof t==='string'?JSON.parse(t.replace(/^```json\\n?/,'').replace(/\\n?```$/,'').trim()):t; return o.image_prompt; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "s07",
+              "name": "editor_notes",
+              "value": "={{ (function(){ const t=$('Agent 2 - Claude Review').first().json.content[0].text; const o=typeof t==='string'?JSON.parse(t.replace(/^```json\\n?/,'').replace(/\\n?```$/,'').trim()):t; return o.editor_notes; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "s08",
+              "name": "platform",
+              "value": "={{ $('⚙️ CONFIG').first().json.platform }}",
+              "type": "string"
+            },
+            {
+              "id": "s09",
+              "name": "restart_count",
+              "value": "={{ $if($('Increment Restart').isExecuted, $('Increment Restart').first().json.restart_count, $('⚙️ CONFIG').first().json.restart_count) }}",
+              "type": "number"
+            },
+            {
+              "id": "s10",
+              "name": "max_restarts",
+              "value": "={{ $('⚙️ CONFIG').first().json.max_restarts }}",
+              "type": "number"
+            },
+            {
+              "id": "s11",
+              "name": "image_regen_count",
+              "value": "={{ $('⚙️ CONFIG').first().json.image_regen_count }}",
+              "type": "number"
+            },
+            {
+              "id": "s12",
+              "name": "image_regen_max",
+              "value": "={{ $('⚙️ CONFIG').first().json.image_regen_max }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-06",
+      "name": "Send Post for Review",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1280,
+        300
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('⚙️ CONFIG').first().json.hitl_channel }}",
+        "text": "={{ '📝 *Weekly Post Draft — ' + $json.platform.toUpperCase() + '*\\n\\n*Headline:* ' + $json.final_headline + '\\n\\n*Body:*\\n' + $json.final_body + '\\n\\n*CTA:* ' + $json.final_cta + '\\n\\n*Hashtags:* ' + $json.final_hashtags + '\\n\\n📌 *Editor Notes:* ' + $json.editor_notes + '\\n\\n_Click a button to decide:_' }}",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "✅ Approve",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=approve' }}"
+                      }
+                    },
+                    {
+                      "text": "✏️ Modify",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=modify' }}"
+                      }
+                    },
+                    {
+                      "text": "❌ Reject",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=reject' }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAMAPI_CREDENTIAL_ID",
+          "name": "Telegram account 13"
+        }
+      }
+    },
+    {
+      "id": "node-07",
+      "name": "Wait - Post Decision",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        300
+      ],
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-08",
+      "name": "Route - Post Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1760,
+        300
+      ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.action }}",
+                    "rightValue": "approve",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Approve"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.action }}",
+                    "rightValue": "modify",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Modify"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.action }}",
+                    "rightValue": "reject",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reject"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.action }}",
+                    "rightValue": "confirm",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Confirm"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "node-09",
+      "name": "Ask for Edit Instructions",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        600
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('⚙️ CONFIG').first().json.hitl_channel }}",
+        "text": "✏️ *What should I change?*\n\nDescribe your edits (e.g. 'Make the opening punchier', 'Add a statistic', 'Change CTA to ask a question'). Your feedback will be applied to all sections.",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "📨 Send Feedback →",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=feedback&feedback=' }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAMAPI_CREDENTIAL_ID",
+          "name": "Telegram account 13"
+        }
+      }
+    },
+    {
+      "id": "node-10",
+      "name": "Wait - Edit Instructions",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2240,
+        600
+      ],
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-11",
+      "name": "Claude Patch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2480,
+        600
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000,
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 2000, temperature: 0.3, messages: [{ role: 'user', content: 'You are an editor applying precise revisions to a post draft.\\n\\nCurrent post:\\nHeadline: ' + $('Store All Drafts').first().json.final_headline + '\\nBody: ' + $('Store All Drafts').first().json.final_body + '\\nCTA: ' + $('Store All Drafts').first().json.final_cta + '\\nImage Prompt: ' + $('Store All Drafts').first().json.image_prompt + '\\n\\nUser feedback: \"' + ($json.query.feedback || $json.body?.feedback || 'Apply general improvements') + '\"\\n\\nApply ONLY the changes the user requested. Keep everything else identical.\\nReturn the same JSON structure:\\n{\"headline\":\"...\",\"body\":\"...\",\"cta\":\"...\",\"hashtags\":[...],\"meta_description\":\"...\",\"image_prompt\":\"...\",\"editor_notes\":\"Brief note on what was changed.\"}' }] }) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HTTPHEADERAUTH_CREDENTIAL_ID",
+          "name": "Claude AI"
+        }
+      }
+    },
+    {
+      "id": "node-12",
+      "name": "Send Revised Draft",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2720,
+        600
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('⚙️ CONFIG').first().json.hitl_channel }}",
+        "text": "={{ (function(){ const t=$('Claude Patch').first().json.content[0].text.replace(/^```json\\n?/,'').replace(/\\n?```$/,'').trim(); const p=JSON.parse(t); return '✨ *Revised Draft*\\n\\n*Headline:* '+p.headline+'\\n\\n*Body:*\\n'+p.body+'\\n\\n*CTA:* '+p.cta+'\\n\\n📌 *Changes made:* '+p.editor_notes; })() }}",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "✅ Confirm & Continue",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=confirm' }}"
+                      }
+                    },
+                    {
+                      "text": "❌ Reject",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=reject' }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAMAPI_CREDENTIAL_ID",
+          "name": "Telegram account 13"
+        }
+      }
+    },
+    {
+      "id": "node-13",
+      "name": "Wait - Patch Confirm",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2960,
+        600
+      ],
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-14",
+      "name": "Reject Guard",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2000,
+        900
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.restart_count }}",
+              "rightValue": "={{ $json.max_restarts }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "node-15",
+      "name": "Increment Restart",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2240,
+        900
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r01",
+              "name": "restart_count",
+              "value": "={{ $json.restart_count + 1 }}",
+              "type": "number"
+            },
+            {
+              "id": "r02",
+              "name": "max_restarts",
+              "value": "={{ $json.max_restarts }}",
+              "type": "number"
+            },
+            {
+              "id": "r03",
+              "name": "platform",
+              "value": "={{ $('⚙️ CONFIG').first().json.platform }}",
+              "type": "string"
+            },
+            {
+              "id": "r04",
+              "name": "image_regen_count",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "r05",
+              "name": "image_regen_max",
+              "value": "={{ $json.image_regen_max }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-16",
+      "name": "Generate Image - DALL-E",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2000,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 20000,
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'dall-e-3', prompt: $('Wait - Refined Prompt').first()?.json?.query?.feedback || $json.image_prompt, n: 1, size: '1792x1024', quality: 'hd' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAIAPI_CREDENTIAL_ID",
+          "name": "OpenAi account 4"
+        }
+      }
+    },
+    {
+      "id": "node-16b",
+      "name": "Store Image URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2240,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "i01",
+              "name": "generated_image_url",
+              "value": "={{ $json.data[0].url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-17",
+      "name": "Send Image for Review",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2480,
+        300
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "={{ $('⚙️ CONFIG').first().json.hitl_channel }}",
+        "file": "={{ $json.generated_image_url }}",
+        "additionalFields": {
+          "caption": "={{ '🖼️ *Generated Image*\\n\\nPrompt: ' + $json.image_prompt + '\\n\\nApprove this image, request a new one, or skip image entirely.' }}",
+          "parse_mode": "Markdown",
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "✅ Approve Image",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=approve_img' }}"
+                      }
+                    },
+                    {
+                      "text": "🔄 Regenerate",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=regen_img' }}"
+                      }
+                    },
+                    {
+                      "text": "⏭️ Skip Image",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=skip_img' }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAMAPI_CREDENTIAL_ID",
+          "name": "Telegram account 13"
+        }
+      }
+    },
+    {
+      "id": "node-18",
+      "name": "Wait - Image Decision",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2720,
+        300
+      ],
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-19",
+      "name": "Route - Image Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2960,
+        300
+      ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.action }}",
+                    "rightValue": "approve_img",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Approve"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.action }}",
+                    "rightValue": "regen_img",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Regenerate"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.action }}",
+                    "rightValue": "skip_img",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Skip"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "node-20",
+      "name": "Ask for Image Refinement",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3200,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('⚙️ CONFIG').first().json.hitl_channel }}",
+        "text": "🎨 *Describe the image you want*\n\nType a new prompt (e.g. 'Warmer colors, no people, modern office feel'). Your description will be used as the new image prompt.\n\n_After typing, click the button below to send it:_",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "📨 Send New Prompt →",
+                      "additionalFields": {
+                        "url": "={{ $execution.resumeUrl + '?action=refined&feedback=' }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAMAPI_CREDENTIAL_ID",
+          "name": "Telegram account 13"
+        }
+      }
+    },
+    {
+      "id": "node-21",
+      "name": "Wait - Refined Prompt",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3440,
+        0
+      ],
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-22",
+      "name": "Publish Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3200,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000,
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Store All Drafts').first().json.platform === 'linkedin' ? 'https://api.linkedin.com/v2/ugcPosts' : 'https://YOUR-SITE.com/wp-json/wp/v2/posts' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Store All Drafts').first().json.platform === 'linkedin' ? JSON.stringify({ author: 'urn:li:person:YOUR_PERSON_URN', lifecycleState: 'PUBLISHED', specificContent: { 'com.linkedin.ugc.ShareContent': { shareCommentary: { text: $('Store All Drafts').first().json.final_body }, shareMediaCategory: 'NONE' } }, visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' } }) : JSON.stringify({ title: $('Store All Drafts').first().json.final_headline, content: $('Store All Drafts').first().json.final_body + '\\n\\n' + $('Store All Drafts').first().json.final_cta, status: 'draft', meta: [{ key: '_yoast_wpseo_metadesc', value: $('Store All Drafts').first().json.final_meta }] }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "HTTPBASICAUTH_CREDENTIAL_ID",
+          "name": "wordpress"
+        }
+      }
+    },
+    {
+      "id": "node-23",
+      "name": "Notify - Success",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3440,
+        300
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('⚙️ CONFIG').first().json.hitl_channel }}",
+        "text": "={{ '✅ *Post Published!*\\n\\nPlatform: ' + $('Store All Drafts').first().json.platform.toUpperCase() + '\\nTitle: ' + $('Store All Drafts').first().json.final_headline + '\\nStatus: Draft saved successfully\\n\\n_Your weekly content is live!_ 🎉' }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAMAPI_CREDENTIAL_ID",
+          "name": "Telegram account 13"
+        }
+      }
+    },
+    {
+      "id": "node-24",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1280,
+        1200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e01",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : ($json.message || 'Unknown error — check n8n execution logs for details.') }}",
+              "type": "string"
+            },
+            {
+              "id": "e02",
+              "name": "error_node",
+              "value": "={{ $json.error?.node?.name || 'Unknown node' }}",
+              "type": "string"
+            },
+            {
+              "id": "e03",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e04",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e05",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAMAPI_CREDENTIAL_ID",
+          "name": "Telegram account 13"
+        }
+      }
+    },
+    {
+      "id": "node-25",
+      "name": "Error Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1520,
+        1200
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id",
+          "cachedResultName": "Error Log Sheet (set your Sheet ID above)"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Error_Log",
+          "mode": "name",
+          "cachedResultName": "Error_Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "workflow_name": "={{ $json.workflow_name }}",
+            "error_node": "={{ $json.error_node }}",
+            "error_message": "={{ $json.error_message }}",
+            "input_data": "={{ $json.input_data }}"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets Temp 6"
+        }
+      }
+    },
+    {
+      "id": "node-26",
+      "name": "Max Restarts Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2480,
+        900
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $('⚙️ CONFIG').first().json.hitl_channel }}",
+        "text": "⛔ *Post Rejected Twice — Workflow Stopped*\n\nThe post was rejected after the maximum number of restarts. Start a fresh run manually when you're ready to try a new topic or direction.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAMAPI_CREDENTIAL_ID",
+          "name": "Telegram account 13"
+        }
+      }
+    },
+    {
+      "id": "node-sticky-1",
+      "name": "🟡 SETUP REQUIRED",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        60
+      ],
+      "parameters": {
+        "content": "## ⚙️ Setup Checklist\n\n**1. Credentials (connect before first run):**\n- OpenAI API Key → nodes: Agent 1, Generate Image\n- Anthropic API Key (Header Auth, name: `x-api-key`) → nodes: Claude Review, Claude Patch\n- Telegram Bot Token → all Telegram nodes\n- Google Sheets OAuth2 → Error Log node\n- WordPress App Password or LinkedIn OAuth2 → Publish Post node\n\n**2. Edit ⚙️ CONFIG node:**\n- Set your `topic`, `audience`, `tone`, `platform`\n- Set `hitl_channel` to your Telegram Chat ID\n\n**3. Edit Publish Post node:**\n- Update the base URL for your WordPress site or LinkedIn URN\n\n**Version:** v1.0.0",
+        "height": 320,
+        "width": 480,
+        "color": 3
+      }
+    },
+    {
+      "id": "node-sticky-2",
+      "name": "🟢 HITL FLOW",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        60
+      ],
+      "parameters": {
+        "content": "## 📱 Human-in-the-Loop Flow\n\n**Post Approval Gate (nodes 6-8):**\n- ✅ Approve → go to image generation\n- ✏️ Modify → Claude applies your feedback\n- ❌ Reject → restart with new draft (max 1 restart)\n\n**Image Approval Gate (nodes 17-19):**\n- ✅ Approve → publish\n- 🔄 Regenerate → you type new prompt\n- ⏭️ Skip → publish without image\n\n**Telegram buttons call `$execution.resumeUrl`**\nThe buyer clicks in Telegram → workflow resumes.",
+        "height": 260,
+        "width": 480,
+        "color": 4
+      }
+    },
+    {
+      "id": "node-sticky-3",
+      "name": "🔴 ERROR HANDLING",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        1060
+      ],
+      "parameters": {
+        "content": "## ⚠️ Error Handling\n\nAll external API nodes (Agent 1, Agent 2, Claude Patch, Generate Image, Publish Post) connect their error output to **Format Error → Error Log**.\n\nErrors are:\n1. Retried automatically (3× for AI, 2× for publish)\n2. Logged to Google Sheets with timestamp\n3. Workflow execution ends after logging\n\nCheck Error_Log tab in your Google Sheet for details.",
+        "height": 220,
+        "width": 400,
+        "color": 2
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Schedule": {
+      "main": [
+        [
+          {
+            "node": "⚙️ CONFIG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ CONFIG": {
+      "main": [
+        [
+          {
+            "node": "Agent 1 - Write Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 1 - Write Draft": {
+      "main": [
+        [
+          {
+            "node": "Agent 2 - Claude Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 2 - Claude Review": {
+      "main": [
+        [
+          {
+            "node": "Store All Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store All Drafts": {
+      "main": [
+        [
+          {
+            "node": "Send Post for Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Post for Review": {
+      "main": [
+        [
+          {
+            "node": "Wait - Post Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - Post Decision": {
+      "main": [
+        [
+          {
+            "node": "Route - Post Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route - Post Action": {
+      "main": [
+        [
+          {
+            "node": "Generate Image - DALL-E",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask for Edit Instructions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject Guard",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Image - DALL-E",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask for Edit Instructions": {
+      "main": [
+        [
+          {
+            "node": "Wait - Edit Instructions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - Edit Instructions": {
+      "main": [
+        [
+          {
+            "node": "Claude Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Patch": {
+      "main": [
+        [
+          {
+            "node": "Send Revised Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Revised Draft": {
+      "main": [
+        [
+          {
+            "node": "Wait - Patch Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - Patch Confirm": {
+      "main": [
+        [
+          {
+            "node": "Route - Post Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reject Guard": {
+      "main": [
+        [
+          {
+            "node": "Increment Restart",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Max Restarts Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Restart": {
+      "main": [
+        [
+          {
+            "node": "Agent 1 - Write Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image - DALL-E": {
+      "main": [
+        [
+          {
+            "node": "Store Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Image URL": {
+      "main": [
+        [
+          {
+            "node": "Send Image for Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Image for Review": {
+      "main": [
+        [
+          {
+            "node": "Wait - Image Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - Image Decision": {
+      "main": [
+        [
+          {
+            "node": "Route - Image Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route - Image Action": {
+      "main": [
+        [
+          {
+            "node": "Publish Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask for Image Refinement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Publish Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask for Image Refinement": {
+      "main": [
+        [
+          {
+            "node": "Wait - Refined Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - Refined Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Image - DALL-E",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish Post": {
+      "main": [
+        [
+          {
+            "node": "Notify - Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error": {
+      "main": [
+        [
+          {
+            "node": "Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

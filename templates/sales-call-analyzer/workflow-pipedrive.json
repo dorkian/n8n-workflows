@@ -1,0 +1,343 @@
+{
+  "name": "Sales Call Analyzer - Pipedrive Edition",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1cc2c08f-60fe-4b1c-a8f8-6b0e1a2c3d4e",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "webhook-id-placeholder"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract call metadata from webhook payload\nreturn {\n  callId: $input.first().json.call_id,\n  recordingUrl: $input.first().json.recording_url,\n  contactEmail: $input.first().json.contact_email,\n  duration: $input.first().json.duration\n};"
+      },
+      "id": "2b3d4e5f-6g7h-8i9j-k0l1-m2n3o4p5q6r7",
+      "name": "Extract Call Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "transcription",
+        "operation": "create",
+        "mediaUrl": "={{$json.recordingUrl}}",
+        "language": "en"
+      },
+      "id": "3c4d5e6f-7g8h-9i0j-k1l2-m3n4o5p6q7r8",
+      "name": "Transcribe with Otter.ai",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "otteriKey": {
+          "id": "YOUR_OTTER_KEY_ID",
+          "name": "Otter.ai API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "Analyze this sales call transcript. Extract: sentiment (positive/neutral/negative), deal stage (prospect/discovery/demo/negotiation/closing/closed-won/closed-lost), top 3 action items, buyer objections. Output as JSON.",
+              "role": "system"
+            },
+            {
+              "content": "={{$json.transcriptionText}}",
+              "role": "user"
+            }
+          ]
+        },
+        "temperature": 0.3
+      },
+      "id": "4d5e6f7g-8h9i-0j1k-l2m3-n4o5p6q7r8s9",
+      "name": "Analyze with OpenAI",
+      "type": "n8n-nodes-base.openai",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_KEY_ID",
+          "name": "OpenAI API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const analysis = JSON.parse($input.first().json.choices[0].message.content);\nreturn {\n  sentiment: analysis.sentiment,\n  dealStage: analysis.deal_stage,\n  actionItems: analysis.action_items,\n  objections: analysis.objections,\n  confidence: analysis.confidence_score || 0.75\n};"
+      },
+      "id": "5e6f7g8h-9i0j-1k2l-m3n4-o5p6q7r8s9t0",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "person",
+        "operation": "search",
+        "filters": {
+          "email": "={{$json.contactEmail}}"
+        }
+      },
+      "id": "6f7g8h9i-0j1k-2l3m-n4o5-p6q7r8s9t0u1",
+      "name": "Find Pipedrive Contact",
+      "type": "n8n-nodes-base.pipedrive",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ],
+      "credentials": {
+        "pipedriveApi": {
+          "id": "YOUR_PIPEDRIVE_KEY_ID",
+          "name": "Pipedrive API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "deal",
+        "operation": "update",
+        "dealId": "={{$json.dealId}}",
+        "updateFields": {
+          "status": "={{$json.dealStage}}",
+          "add_time": "={{new Date().toISOString()}}",
+          "custom_sentiment_field": "={{$json.sentiment}}"
+        }
+      },
+      "id": "7g8h9i0j-1k2l-3m4n-o5p6-q7r8s9t0u1v2",
+      "name": "Update Pipedrive Deal",
+      "type": "n8n-nodes-base.pipedrive",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        200
+      ],
+      "credentials": {
+        "pipedriveApi": {
+          "id": "YOUR_PIPEDRIVE_KEY_ID",
+          "name": "Pipedrive API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "activity",
+        "operation": "create",
+        "type": "task",
+        "subject": "Follow up from {{$json.sentiment}} call",
+        "personId": "={{$json.personId}}",
+        "dealId": "={{$json.dealId}}",
+        "dueDate": "={{new Date(Date.now() + 2*24*60*60*1000).toISOString().split('T')[0]}}",
+        "note": "Call analysis: {{$json.actionItems.join(', ')}}"
+      },
+      "id": "8h9i0j1k-2l3m-4n5o-p6q7-r8s9t0u1v2w3",
+      "name": "Create Follow-Up Activity",
+      "type": "n8n-nodes-base.pipedrive",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "spreadsheetId": "YOUR_SHEETS_ID",
+        "range": "A1:G1",
+        "operation": "append",
+        "values": "={{[[{call_id: $json.callId, contact_email: $json.contactEmail, sentiment: $json.sentiment, deal_stage: $json.dealStage, confidence: $json.confidence, action_items: $json.actionItems.join('; '), timestamp: new Date().toISOString()}]]}}"
+      },
+      "id": "9i0j1k2l-3m4n-5o6p-q7r8-s9t0u1v2w3x4",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [
+        1650,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "YOUR_SHEETS_KEY_ID",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "webhookUrl": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "text": "📞 Call processed for {{$json.contactEmail}}\n• Sentiment: {{$json.sentiment}}\n• Deal Stage: {{$json.dealStage}}\n• Confidence: {{($json.confidence * 100).toFixed(0)}}%\n• Next Steps: {{$json.actionItems.join(', ')}}"
+      },
+      "id": "0j1k2l3m-4n5o-6p7q-r8s9-t0u1v2w3x4y5",
+      "name": "Send Slack Alert (Optional)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1650,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle low-confidence scores by flagging for review\nif ($input.first().json.confidence < 0.70) {\n  return { shouldReview: true, reason: 'Confidence below 70%' };\n}\nreturn { shouldReview: false };"
+      },
+      "id": "1k2l3m4n-5o6p-7q8r-s9t0-u1v2w3x4y5z6",
+      "name": "Check Confidence Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "spreadsheetId": "YOUR_SHEETS_ID",
+        "range": "ErrorLog!A1",
+        "operation": "append",
+        "values": "={{[[{timestamp: new Date().toISOString(), call_id: $json.callId, error_type: $json.errorType, error_message: $json.errorMessage, node_failed: $json.failedNode}]]}}"
+      },
+      "id": "2l3m4n5o-6p7q-8r9s-t0u1-v2w3x4y5z6a7",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Call Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Call Data": {
+      "main": [
+        [
+          {
+            "node": "Transcribe with Otter.ai",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe with Otter.ai": {
+      "main": [
+        [
+          {
+            "node": "Analyze with OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze with OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Check Confidence Score",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Find Pipedrive Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Pipedrive Contact": {
+      "main": [
+        [
+          {
+            "node": "Update Pipedrive Deal",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Follow-Up Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Pipedrive Deal": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Follow-Up Activity": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert (Optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert (Optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

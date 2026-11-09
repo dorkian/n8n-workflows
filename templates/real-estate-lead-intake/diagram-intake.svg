@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="170 150 1988 588" width="1988" height="588" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+<rect x="170" y="150" width="1988" height="588" fill="#ffffff"/>
+<path d="M1248 204.0 C1288 204.0 1260 204.0 1300 204.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1300" cy="204.0" r="3" fill="#8c959f"/>
+<path d="M1248 204.0 C1332.0 204.0 996.0 484.0 1080 484.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1080" cy="484.0" r="3" fill="#8c959f"/>
+<path d="M1028 204.0 C1068 204.0 1040 204.0 1080 204.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1080" cy="204.0" r="3" fill="#8c959f"/>
+<path d="M1908 204.0 C1948 204.0 1920 204.0 1960 204.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1960" cy="204.0" r="3" fill="#8c959f"/>
+<path d="M808 204.0 C848 204.0 820 204.0 860 204.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="860" cy="204.0" r="3" fill="#8c959f"/>
+<path d="M1248 484.0 C1288 484.0 1260 684.0 1300 684.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1300" cy="684.0" r="3" fill="#8c959f"/>
+<path d="M2128 484.0 C2542.0 484.0 886.0 684.0 1300 684.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1300" cy="684.0" r="3" fill="#8c959f"/>
+<path d="M1688 484.0 C1882.0 484.0 1106.0 684.0 1300 684.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1300" cy="684.0" r="3" fill="#8c959f"/>
+<path d="M1688 204.0 C1728 204.0 1700 204.0 1740 204.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1740" cy="204.0" r="3" fill="#8c959f"/>
+<path d="M1688 204.0 C1772.0 204.0 1436.0 484.0 1520 484.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1520" cy="484.0" r="3" fill="#8c959f"/>
+<path d="M1468 204.0 C1508 204.0 1480 204.0 1520 204.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1520" cy="204.0" r="3" fill="#8c959f"/>
+<path d="M368 324.0 C408 324.0 380 324.0 420 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="420" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M2128 204.0 C2212.0 204.0 1876.0 484.0 1960 484.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1960" cy="484.0" r="3" fill="#8c959f"/>
+<path d="M588 324.0 C628 324.0 600 204.0 640 204.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="640" cy="204.0" r="3" fill="#8c959f"/>
+<path d="M588 324.0 C628 324.0 600 484.0 640 484.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="640" cy="484.0" r="3" fill="#8c959f"/>
+<path d="M808 484.0 C1054.0 484.0 1054.0 684.0 1300 684.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1300" cy="684.0" r="3" fill="#8c959f"/>
+<rect x="200" y="300" width="168" height="48" rx="8" fill="#e3f6e8" stroke="#1a7f37" stroke-width="1.4"/>
+<text x="284.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Receive Lead</text>
+<rect x="420" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="504.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Validate Input</text>
+<rect x="640" y="460" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="724.0" y="488.0" text-anchor="middle" font-size="12" fill="#1f2328">Validation Error</text>
+<rect x="640" y="180" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="724.0" y="201.0" text-anchor="middle" font-size="12" fill="#1f2328">Extract &amp; Normalize</text>
+<text x="724.0" y="215.0" text-anchor="middle" font-size="12" fill="#1f2328">Fields</text>
+<rect x="860" y="180" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="944.0" y="208.0" text-anchor="middle" font-size="12" fill="#1f2328">Build AI Prompt</text>
+<rect x="1080" y="180" width="168" height="48" rx="8" fill="#efe7fb" stroke="#6f42c1" stroke-width="1.4"/>
+<text x="1164.0" y="201.0" text-anchor="middle" font-size="12" fill="#1f2328">AI Classify &amp; Draft</text>
+<text x="1164.0" y="215.0" text-anchor="middle" font-size="12" fill="#1f2328">Reply</text>
+<rect x="1080" y="460" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="1164.0" y="488.0" text-anchor="middle" font-size="12" fill="#1f2328">Format AI Error</text>
+<rect x="1300" y="180" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1384.0" y="208.0" text-anchor="middle" font-size="12" fill="#1f2328">Prepare Lead Row</text>
+<rect x="1520" y="180" width="168" height="48" rx="8" fill="#e0f5f2" stroke="#0f766e" stroke-width="1.4"/>
+<text x="1604.0" y="208.0" text-anchor="middle" font-size="12" fill="#1f2328">Log Lead to Sheet</text>
+<rect x="1520" y="460" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="1604.0" y="488.0" text-anchor="middle" font-size="12" fill="#1f2328">Format Sheets Error</text>
+<rect x="1740" y="180" width="168" height="48" rx="8" fill="#fff1d6" stroke="#9a6700" stroke-width="1.4"/>
+<text x="1824.0" y="208.0" text-anchor="middle" font-size="12" fill="#1f2328">Build Reply Email</text>
+<rect x="1960" y="180" width="168" height="48" rx="8" fill="#fff1d6" stroke="#9a6700" stroke-width="1.4"/>
+<text x="2044.0" y="208.0" text-anchor="middle" font-size="12" fill="#1f2328">Send First Reply</text>
+<rect x="1960" y="460" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="2044.0" y="488.0" text-anchor="middle" font-size="12" fill="#1f2328">Format Gmail Error</text>
+<rect x="1300" y="660" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="1384.0" y="688.0" text-anchor="middle" font-size="12" fill="#1f2328">Error Log</text>
+</svg>

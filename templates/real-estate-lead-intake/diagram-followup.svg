@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="170 270 2648 468" width="2400" height="424" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+<rect x="170" y="270" width="2648" height="468" fill="#ffffff"/>
+<path d="M1028 324.0 C1068 324.0 1040 324.0 1080 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1080" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M1468 324.0 C1508 324.0 1480 324.0 1520 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1520" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M368 324.0 C408 324.0 380 324.0 420 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="420" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M1688 324.0 C1728 324.0 1700 324.0 1740 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1740" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M1688 324.0 C1772.0 324.0 1436.0 484.0 1520 484.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1520" cy="484.0" r="3" fill="#8c959f"/>
+<path d="M588 324.0 C628 324.0 600 324.0 640 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="640" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M588 324.0 C672.0 324.0 336.0 484.0 420 484.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="420" cy="484.0" r="3" fill="#8c959f"/>
+<path d="M808 324.0 C848 324.0 820 324.0 860 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="860" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M1688 484.0 C1992.0 484.0 776.0 684.0 1080 684.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1080" cy="684.0" r="3" fill="#8c959f"/>
+<path d="M1908 484.0 C2322.0 484.0 666.0 684.0 1080 684.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1080" cy="684.0" r="3" fill="#8c959f"/>
+<path d="M588 484.0 C834.0 484.0 834.0 684.0 1080 684.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1080" cy="684.0" r="3" fill="#8c959f"/>
+<path d="M1248 324.0 C1288 324.0 1260 324.0 1300 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1300" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M2568 324.0 C2608 324.0 2580 324.0 2620 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="2620" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M2128 324.0 C2168 324.0 2140 324.0 2180 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="2180" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M1908 324.0 C1948 324.0 1920 324.0 1960 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1960" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M1908 324.0 C1992.0 324.0 1656.0 484.0 1740 484.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1740" cy="484.0" r="3" fill="#8c959f"/>
+<path d="M2348 324.0 C2388 324.0 2360 324.0 2400 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="2400" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M2348 324.0 C2982.0 324.0 446.0 684.0 1080 684.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1080" cy="684.0" r="3" fill="#8c959f"/>
+<rect x="200" y="300" width="168" height="48" rx="8" fill="#e3f6e8" stroke="#1a7f37" stroke-width="1.4"/>
+<text x="284.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Daily 8 AM</text>
+<rect x="420" y="300" width="168" height="48" rx="8" fill="#e0f5f2" stroke="#0f766e" stroke-width="1.4"/>
+<text x="504.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Fetch Active Leads</text>
+<rect x="420" y="460" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="504.0" y="488.0" text-anchor="middle" font-size="12" fill="#1f2328">Format Read Error</text>
+<rect x="640" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="724.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Filter Due Leads</text>
+<rect x="860" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="944.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Any Due Today?</text>
+<rect x="1080" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1164.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Loop Over Items</text>
+<rect x="1300" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1384.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Build Follow-up Prompt</text>
+<rect x="1520" y="300" width="168" height="48" rx="8" fill="#efe7fb" stroke="#6f42c1" stroke-width="1.4"/>
+<text x="1604.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Draft Follow-up Email</text>
+<rect x="1520" y="460" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="1604.0" y="488.0" text-anchor="middle" font-size="12" fill="#1f2328">Format AI Error</text>
+<rect x="1740" y="300" width="168" height="48" rx="8" fill="#fff1d6" stroke="#9a6700" stroke-width="1.4"/>
+<text x="1824.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Send Follow-up Email</text>
+<rect x="1740" y="460" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="1824.0" y="488.0" text-anchor="middle" font-size="12" fill="#1f2328">Format Gmail Error</text>
+<rect x="1960" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="2044.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Prepare Update Data</text>
+<rect x="2180" y="300" width="168" height="48" rx="8" fill="#e0f5f2" stroke="#0f766e" stroke-width="1.4"/>
+<text x="2264.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Update Lead Row</text>
+<rect x="2400" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="2484.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Prepare Digest Data</text>
+<rect x="2620" y="300" width="168" height="48" rx="8" fill="#fff1d6" stroke="#9a6700" stroke-width="1.4"/>
+<text x="2704.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Send Daily Digest</text>
+<rect x="1080" y="660" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="1164.0" y="688.0" text-anchor="middle" font-size="12" fill="#1f2328">Error Log</text>
+</svg>

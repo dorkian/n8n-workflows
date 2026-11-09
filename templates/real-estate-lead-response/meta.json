@@ -1,0 +1,13 @@
+{
+  "title": "Real Estate Instant Lead Response & AI Qualifier",
+  "tagline": "Turn an inbound lead into a scored CRM contact and an instant SMS reply.",
+  "language": "en",
+  "persona": "Real estate",
+  "description": "A webhook receives a new lead. Fields are validated, an LLM classifies intent, a lead score is computed, the HubSpot contact is created or updated, and an SMS reply goes out through Twilio. Validation, CRM and AI-timeout failures each have their own error branch that logs to a Google Sheet.",
+  "patterns": [
+    "webhook trigger",
+    "AI classification and scoring",
+    "CRM upsert",
+    "dedicated error branches"
+  ]
+}

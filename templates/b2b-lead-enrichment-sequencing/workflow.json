@@ -1,0 +1,2121 @@
+{
+  "name": "Signal-Based B2B Lead Enrichment & Sequencing — n8n Template",
+  "nodes": [
+    {
+      "id": "node-01",
+      "name": "Watch Leads Inbox",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "documentId": {
+          "mode": "id",
+          "value": "={{ $env.LEADS_INBOX_SHEET_ID }}"
+        },
+        "sheetName": {
+          "mode": "id",
+          "value": "Leads_Inbox"
+        },
+        "event": "rowAdded",
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "headerRow": 1,
+              "firstDataRow": 2
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "id": "node-02",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        460,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.lead_email }}",
+              "rightValue": "@",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "leftValue": "={{ $json.company_domain }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "node-03",
+      "name": "Apollo Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        700,
+        180
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.apollo.io/v1/people/match",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $json.lead_email }}"
+            },
+            {
+              "name": "domain",
+              "value": "={{ $json.company_domain }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "APOLLO_CREDENTIAL_ID",
+          "name": "Apollo API Key"
+        }
+      }
+    },
+    {
+      "id": "node-04",
+      "name": "Format Apollo Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        700,
+        520
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Apollo Lookup failed after 3 retries. Check your Apollo API key and request quota.' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "Apollo Lookup",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-05",
+      "name": "Clay Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        700,
+        420
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.clay.com/v1/enrich/company",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $json.company_domain }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CLAY_CREDENTIAL_ID",
+          "name": "Clay API Key"
+        }
+      }
+    },
+    {
+      "id": "node-06",
+      "name": "Format Clay Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        700,
+        660
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Clay Enrichment failed after 3 retries. Check your Clay API key and domain input.' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "Clay Enrichment",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-07",
+      "name": "Merge Enrichment Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        940,
+        300
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "outputDataFrom": "both",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-08",
+      "name": "Extract Signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        300
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Signal Extraction — B2B Lead Enrichment v1.0.0\n// Parses Apollo (person) + Clay (company) enrichment data.\n// Falls back gracefully if one provider is missing.\n\nconst item = $input.item.json;\n\n// --- Flatten key person fields from Apollo ---\nconst apolloData = item.person || item || {};\nconst firstName = apolloData.first_name || apolloData.firstName || '';\nconst title = apolloData.title || apolloData.headline || '';\n\n// --- Flatten key company fields from Clay ---\nconst companyData = item.company || item.organization || item || {};\nconst companyName = companyData.name || companyData.company_name || item.company_domain || '';\nconst employeeCount = companyData.employee_count || companyData.employees || 0;\nconst industry = companyData.industry || companyData.category || '';\n\n// --- Signal detection helpers ---\nconst now = DateTime.now();\n\nfunction daysSince(dateStr) {\n  if (!dateStr) return 9999;\n  try {\n    return Math.abs(now.diff(DateTime.fromISO(dateStr), 'days').days);\n  } catch (e) {\n    return 9999;\n  }\n}\n\n// Signal 1: Funding round in last 90 days\nconst fundingDate = companyData.last_funding_date\n  || companyData.funding_date\n  || companyData.latest_funding_date\n  || null;\nconst fundingRoundRecent = daysSince(fundingDate) <= 90;\n\n// Signal 2: Job change — role start date within last 60 days\nconst jobStartDate = apolloData.job_start_date\n  || apolloData.started_at\n  || apolloData.employment_start_date\n  || null;\nconst jobChangeDetected = daysSince(jobStartDate) <= 60;\n\n// Signal 3: Tech stack shift — new tool added in last 30 days\nconst techAddedDate = companyData.tech_added_date\n  || companyData.latest_tech_change_date\n  || null;\nconst techStackShift = daysSince(techAddedDate) <= 30;\n\n// Priority: highest signal wins (funding > job_change > tech_stack_shift > null)\nlet prioritySignal = null;\nif (fundingRoundRecent) {\n  prioritySignal = 'funding_round';\n} else if (jobChangeDetected) {\n  prioritySignal = 'job_change';\n} else if (techStackShift) {\n  prioritySignal = 'tech_stack_shift';\n}\n\nreturn {\n  json: {\n    lead_email: item.lead_email || apolloData.email || '',\n    company_domain: item.company_domain || '',\n    crm_contact_id: item.crm_contact_id || '',\n    first_name: firstName,\n    title,\n    company_name: companyName,\n    employee_count: employeeCount,\n    industry,\n    funding_round_recent: fundingRoundRecent,\n    job_change_detected: jobChangeDetected,\n    tech_stack_shift: techStackShift,\n    priority_signal: prioritySignal,\n    _apollo_raw: apolloData,\n    _clay_raw: companyData\n  }\n};\n"
+      }
+    },
+    {
+      "id": "node-09",
+      "name": "Signal Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1380,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.priority_signal }}",
+                    "rightValue": "funding_round",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "funding_round"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.priority_signal }}",
+                    "rightValue": "job_change",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "job_change"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.priority_signal }}",
+                    "rightValue": "tech_stack_shift",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "tech_stack_shift"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.priority_signal }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "isEmpty"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "none"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "node-10",
+      "name": "Build AI Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1600,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "ai_prompt",
+              "value": "={{ 'You are a B2B outbound copywriter. Write a short, personalized cold email for a lead with the following context:\\n\\nFirst name: ' + $json.first_name + '\\nTitle: ' + $json.title + '\\nCompany: ' + $json.company_name + '\\nIndustry: ' + $json.industry + '\\nEmployee count: ' + $json.employee_count + '\\nSignal type: ' + ($json.priority_signal || 'none') + '\\n\\nSignal detail:\\n' + ($json.priority_signal === 'funding_round' ? 'The company recently announced a funding round. Congratulate them and connect your product to their growth phase.' : $json.priority_signal === 'job_change' ? 'The contact recently started a new role. Acknowledge the transition and offer a relevant value-add.' : $json.priority_signal === 'tech_stack_shift' ? 'The company recently added or changed a key technology. Mention the shift and how your product complements their new stack.' : 'No specific signal detected. Use a concise, value-prop-first approach.') + '\\n\\nRespond ONLY with valid JSON in this exact format (no markdown, no explanation):\\n{\\n  \"subject\": \"...\",\\n  \"line_1_hook\": \"...\",\\n  \"line_2_value\": \"...\",\\n  \"line_3_cta\": \"...\",\\n  \"sequence_tier\": \"warm\" or \"cold\"\\n}\\n\\nRules:\\n- subject: max 60 chars, no clickbait\\n- line_1_hook: 1 sentence referencing the signal (or a strong opener if none)\\n- line_2_value: 1 sentence connecting your product value to their situation\\n- line_3_cta: 1 question or soft ask, no pressure\\n- sequence_tier: \"warm\" if any signal detected, \"cold\" if none' }}",
+              "type": "string"
+            },
+            {
+              "id": "p2",
+              "name": "lead_email",
+              "value": "={{ $json.lead_email }}",
+              "type": "string"
+            },
+            {
+              "id": "p3",
+              "name": "first_name",
+              "value": "={{ $json.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "p4",
+              "name": "company_name",
+              "value": "={{ $json.company_name }}",
+              "type": "string"
+            },
+            {
+              "id": "p5",
+              "name": "priority_signal",
+              "value": "={{ $json.priority_signal }}",
+              "type": "string"
+            },
+            {
+              "id": "p6",
+              "name": "company_domain",
+              "value": "={{ $json.company_domain }}",
+              "type": "string"
+            },
+            {
+              "id": "p7",
+              "name": "crm_contact_id",
+              "value": "={{ $json.crm_contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "p8",
+              "name": "industry",
+              "value": "={{ $json.industry }}",
+              "type": "string"
+            },
+            {
+              "id": "p9",
+              "name": "employee_count",
+              "value": "={{ $json.employee_count }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-11",
+      "name": "OpenAI Personalize Copy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1820,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.7, max_tokens: 600, messages: [{ role: 'user', content: $json.ai_prompt }] }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "id": "node-12",
+      "name": "Format OpenAI Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        520
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'OpenAI request failed after 3 retries. Check your OpenAI API key, billing status, and request quota at platform.openai.com.' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "OpenAI Personalize Copy",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-13",
+      "name": "HubSpot Search Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2040,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/search",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: $json.lead_email }] }], properties: ['email', 'firstname', 'lastname', 'hs_object_id', 'outbound_sequence_active'], limit: 1 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "hubspotApi": {
+          "id": "HUBSPOT_CREDENTIAL_ID",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "id": "node-14",
+      "name": "Format HubSpot Search Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2040,
+        520
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'HubSpot Search Contact failed after 2 retries. Check your HubSpot API key and private app scopes (contacts read).' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "HubSpot Search Contact",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-15",
+      "name": "Contact Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2260,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.total }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "node-16",
+      "name": "HubSpot Update Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2480,
+        180
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://api.hubapi.com/crm/v3/objects/contacts/' + $json.results[0].id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { outbound_sequence_active: 'true', last_signal_detected: DateTime.now().toISO(), signal_type: $json.priority_signal || 'none', email_subject: $json.subject || '', email_hook: $json.line_1_hook || '' } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "hubspotApi": {
+          "id": "HUBSPOT_CREDENTIAL_ID",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "id": "node-17",
+      "name": "Format HubSpot Update Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2480,
+        380
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'HubSpot Update Contact failed after 2 retries. Check your HubSpot private app has contacts write scope.' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "HubSpot Update Contact",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-18",
+      "name": "HubSpot Create Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2480,
+        520
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { email: $json.lead_email, firstname: $json.first_name, company: $json.company_name, jobtitle: $json.title || '', industry: $json.industry || '', outbound_sequence_active: 'true', last_signal_detected: DateTime.now().toISO(), signal_type: $json.priority_signal || 'none', sequence_tier: $json.sequence_tier || 'cold' } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "hubspotApi": {
+          "id": "HUBSPOT_CREDENTIAL_ID",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "id": "node-19",
+      "name": "Format HubSpot Create Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2480,
+        720
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'HubSpot Create Contact failed after 2 retries. Check your HubSpot private app has contacts write scope and the email is not a duplicate.' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "HubSpot Create Contact",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-20",
+      "name": "Sequence Tier Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2700,
+        350
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.sequence_tier }}",
+                    "rightValue": "warm",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "warm"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.sequence_tier }}",
+                    "rightValue": "cold",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cold"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "node-21",
+      "name": "Instantly Inject Warm",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2920,
+        220
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.instantly.ai/api/v2/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ campaign_id: $env.INSTANTLY_WARM_CAMPAIGN_ID, email: $json.lead_email, first_name: $json.first_name || '', company_name: $json.company_name || '', personalization: $json.line_1_hook || '', subject: $json.subject || '', reply_to_webhook_url: $env.N8N_WEBHOOK_BASE_URL + '/lead-reply' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "INSTANTLY_CREDENTIAL_ID",
+          "name": "Instantly API Key"
+        }
+      }
+    },
+    {
+      "id": "node-22",
+      "name": "Format Instantly Warm Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2920,
+        420
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Instantly Inject Warm failed after 3 retries. Check your Instantly API key and warm campaign ID (env: INSTANTLY_WARM_CAMPAIGN_ID).' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "Instantly Inject Warm",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-23",
+      "name": "Instantly Inject Cold",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2920,
+        580
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.instantly.ai/api/v2/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ campaign_id: $env.INSTANTLY_COLD_CAMPAIGN_ID, email: $json.lead_email, first_name: $json.first_name || '', company_name: $json.company_name || '', personalization: $json.line_1_hook || '', subject: $json.subject || '', reply_to_webhook_url: $env.N8N_WEBHOOK_BASE_URL + '/lead-reply' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "INSTANTLY_CREDENTIAL_ID",
+          "name": "Instantly API Key"
+        }
+      }
+    },
+    {
+      "id": "node-24",
+      "name": "Format Instantly Cold Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2920,
+        780
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Instantly Inject Cold failed after 3 retries. Check your Instantly API key and cold campaign ID (env: INSTANTLY_COLD_CAMPAIGN_ID).' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "Instantly Inject Cold",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-25",
+      "name": "Append Run Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3140,
+        400
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "={{ $env.RUN_LOG_SHEET_ID }}"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Run_Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ DateTime.now().toISO() }}",
+            "lead_email": "={{ $json.lead_email }}",
+            "company": "={{ $json.company_name }}",
+            "signal_type": "={{ $json.priority_signal || 'none' }}",
+            "sequence_tier": "={{ $json.sequence_tier || 'cold' }}",
+            "instantly_lead_id": {
+              "__rl": true,
+              "value": "={{ $json.id || '' }}",
+              "mode": "expression"
+            },
+            "hubspot_contact_id": {
+              "__rl": true,
+              "value": "={{ $json.hs_object_id || '' }}",
+              "mode": "expression"
+            },
+            "status": "injected"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "id": "node-26",
+      "name": "Reply Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        900
+      ],
+      "webhookId": "lead-reply-webhook",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-reply",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-27",
+      "name": "Format Reply Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        900
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r1",
+              "name": "contact_id",
+              "value": "={{ $json.body.contact_id || $json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "r2",
+              "name": "email",
+              "value": "={{ $json.body.email || $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "r3",
+              "name": "reply_received_at",
+              "value": "={{ $json.body.reply_received_at || $json.reply_received_at || DateTime.now().toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-28",
+      "name": "HubSpot Set Paused Flag",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        700,
+        900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://api.hubapi.com/crm/v3/objects/contacts/' + $json.contact_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { outbound_sequence_active: 'false', outbound_status: 'replied', replied_at: $json.reply_received_at } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "hubspotApi": {
+          "id": "HUBSPOT_CREDENTIAL_ID",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "id": "node-29",
+      "name": "Format HubSpot Pause Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        700,
+        1080
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'CRITICAL: HubSpot Set Paused Flag failed. Contact may continue receiving sequences after replying. Check HubSpot API key and contact ID.' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "HubSpot Set Paused Flag",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-30",
+      "name": "Instantly Pause Sequence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        940,
+        900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.instantly.ai/api/v2/leads/pause",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ email: $json.email }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "INSTANTLY_CREDENTIAL_ID",
+          "name": "Instantly API Key"
+        }
+      }
+    },
+    {
+      "id": "node-31",
+      "name": "Format Instantly Pause Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        940,
+        1080
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'CRITICAL: Instantly Pause Sequence failed. Lead may still receive outbound emails after replying. Check Instantly API key and that the email exists in active campaigns.' }}",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "Instantly Pause Sequence",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-32",
+      "name": "Append Reply to Run Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1160,
+        900
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "={{ $env.RUN_LOG_SHEET_ID }}"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Run_Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ DateTime.now().toISO() }}",
+            "lead_email": "={{ $json.email }}",
+            "company": "",
+            "signal_type": "reply_received",
+            "sequence_tier": "paused",
+            "instantly_lead_id": "",
+            "hubspot_contact_id": {
+              "__rl": true,
+              "value": "={{ $json.contact_id }}",
+              "mode": "expression"
+            },
+            "status": "paused_on_reply"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "id": "node-33",
+      "name": "Format Validate Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        520
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "Invalid email format or missing company domain. Required: lead_email must contain '@' and company_domain must be non-empty. Re-check your Leads_Inbox sheet row.",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "Validate Input",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e5",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-34",
+      "name": "Append Error Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3360,
+        900
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "={{ $env.ERROR_LOG_SHEET_ID }}"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Error_Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "workflow_name": {
+              "__rl": true,
+              "value": "={{ $json.workflow_name }}",
+              "mode": "expression"
+            },
+            "error_node": "={{ $json.error_node }}",
+            "error_message": "={{ $json.error_message }}",
+            "input_data": "={{ $json.input_data }}"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "id": "sticky-01",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        40,
+        120
+      ],
+      "parameters": {
+        "content": "## Signal-Based B2B Lead Enrichment & Sequencing v1.0.0\n\nWatches Google Sheet for new leads → enriches via Apollo + Clay → routes by signal (funding / job-change / tech-shift) → AI-personalizes copy → injects into Instantly with reply auto-pause via CRM webhook.\n\n**Setup checklist:**\n1. Connect 6 credentials (see README)\n2. Create 3 Google Sheets: Leads_Inbox, Run_Log, Error_Log\n3. Set env vars: LEADS_INBOX_SHEET_ID, RUN_LOG_SHEET_ID, ERROR_LOG_SHEET_ID, INSTANTLY_WARM_CAMPAIGN_ID, INSTANTLY_COLD_CAMPAIGN_ID, N8N_WEBHOOK_BASE_URL\n4. Configure CRM to POST replies to webhook URL on node 'Reply Webhook Trigger'\n5. Run happy-path test before activating",
+        "height": 220,
+        "width": 580,
+        "color": 7
+      }
+    },
+    {
+      "id": "sticky-02",
+      "name": "Enrichment Phase Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        620,
+        60
+      ],
+      "parameters": {
+        "content": "## Enrichment Phase (Parallel)\n\nApollo provides person-level data, Clay provides company-level signals. Both run in parallel from the Validate Input node. Merge combines results by position.\n\n**Graceful degradation:** If one provider fails, the Code node falls back to a cold sequence_tier with generic copy rather than killing the entire run.",
+        "height": 160,
+        "width": 400,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky-03",
+      "name": "Signal Detection Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        160
+      ],
+      "parameters": {
+        "content": "## SIGNAL DETECTION HAPPENS HERE\n\nJS code checks for:\n1. **funding_round** — last_funding_date within 90 days\n2. **job_change** — job_start_date within 60 days\n3. **tech_stack_shift** — tech_added_date within 30 days\n\nEdit thresholds inside this Code node to tune for your industry.\n\nTHIS IS THE KEY DIFFERENTIATOR vs. free Apollo+Instantly templates.",
+        "height": 200,
+        "width": 360,
+        "color": 3
+      }
+    },
+    {
+      "id": "sticky-04",
+      "name": "Signal Router Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        160
+      ],
+      "parameters": {
+        "content": "## 4-Way Signal Routing\n\nfunding_round / job_change / tech_stack_shift / none\n\nEach path feeds the SAME OpenAI node but with different signal context in the prompt. Add more signal types here if needed.",
+        "height": 160,
+        "width": 300,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky-05",
+      "name": "OpenAI Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        160
+      ],
+      "parameters": {
+        "content": "## AI Copy Generation\n\nModel: gpt-4o-mini | Temperature: 0.7 | Max tokens: 600\n\nPrompt is built dynamically from the upstream Build AI Prompt node — DO NOT hardcode prompt inside this node. Outputs structured JSON: subject, line_1_hook, line_2_value, line_3_cta, sequence_tier.",
+        "height": 160,
+        "width": 340,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky-06",
+      "name": "CRM Dedup Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1960,
+        160
+      ],
+      "parameters": {
+        "content": "## CRM Deduplication\n\nAlways search HubSpot first.\n- Contact exists → UPDATE (preserves history)\n- Contact missing → CREATE\n\nPrevents duplicate records and preserves CRM hygiene.\n\n**Pipedrive alternative:** Swap HubSpot nodes for Pipedrive. See README for endpoint mapping.",
+        "height": 180,
+        "width": 340,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky-07",
+      "name": "Sequence Tier Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2620,
+        100
+      ],
+      "parameters": {
+        "content": "## Multi-Sequence Logic\n\nSignal-detected leads → WARM campaign (higher-touch, signal-specific copy)\n\nNo-signal leads → COLD campaign (generic value-prop)\n\nConfigure both campaign IDs as env vars:\n- INSTANTLY_WARM_CAMPAIGN_ID\n- INSTANTLY_COLD_CAMPAIGN_ID",
+        "height": 180,
+        "width": 360,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky-08",
+      "name": "Reply Detection Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        40,
+        760
+      ],
+      "parameters": {
+        "content": "## REPLY DETECTION & AUTO-PAUSE\n\nThis is a SEPARATE trigger path (Webhook). Configure your CRM (HubSpot Workflows or Pipedrive Automation) to POST to this webhook when an inbound email reply arrives on a contact tagged `outbound_sequence_active`.\n\nBoth HubSpot flag update AND Instantly pause must succeed. If either fails, check Error_Log immediately.\n\nTHIS IS THE SECOND KEY DIFFERENTIATOR vs. free templates.",
+        "height": 200,
+        "width": 480,
+        "color": 3
+      }
+    },
+    {
+      "id": "sticky-09",
+      "name": "Error Handling Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3160,
+        760
+      ],
+      "parameters": {
+        "content": "## Centralized Error Handling\n\nEvery external API node routes its error output to a Format Error node, then to this Append Error Log node.\n\nError_Log columns: timestamp | workflow_name | error_node | error_message | input_data\n\nSet up a daily review of Error_Log or a Slack alert on new rows.",
+        "height": 180,
+        "width": 380,
+        "color": 4
+      }
+    }
+  ],
+  "connections": {
+    "Watch Leads Inbox": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Apollo Lookup",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Clay Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Validate Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apollo Lookup": {
+      "main": [
+        [
+          {
+            "node": "Merge Enrichment Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format Apollo Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clay Enrichment": {
+      "main": [
+        [
+          {
+            "node": "Merge Enrichment Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format Clay Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Enrichment Data": {
+      "main": [
+        [
+          {
+            "node": "Extract Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Signals": {
+      "main": [
+        [
+          {
+            "node": "Signal Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signal Router": {
+      "main": [
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Personalize Copy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Personalize Copy": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Search Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format OpenAI Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Search Contact": {
+      "main": [
+        [
+          {
+            "node": "Contact Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format HubSpot Search Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Exists?": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Update Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HubSpot Create Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Update Contact": {
+      "main": [
+        [
+          {
+            "node": "Sequence Tier Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format HubSpot Update Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Create Contact": {
+      "main": [
+        [
+          {
+            "node": "Sequence Tier Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format HubSpot Create Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sequence Tier Router": {
+      "main": [
+        [
+          {
+            "node": "Instantly Inject Warm",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Instantly Inject Cold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instantly Inject Warm": {
+      "main": [
+        [
+          {
+            "node": "Append Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format Instantly Warm Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instantly Inject Cold": {
+      "main": [
+        [
+          {
+            "node": "Append Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format Instantly Cold Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Reply Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Reply Event": {
+      "main": [
+        [
+          {
+            "node": "HubSpot Set Paused Flag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot Set Paused Flag": {
+      "main": [
+        [
+          {
+            "node": "Instantly Pause Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format HubSpot Pause Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instantly Pause Sequence": {
+      "main": [
+        [
+          {
+            "node": "Append Reply to Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Format Instantly Pause Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Apollo Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Clay Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Validate Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format OpenAI Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format HubSpot Search Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format HubSpot Update Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format HubSpot Create Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Instantly Warm Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Instantly Cold Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format HubSpot Pause Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Instantly Pause Error": {
+      "main": [
+        [
+          {
+            "node": "Append Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "timezone": "UTC",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

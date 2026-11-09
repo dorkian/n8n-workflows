@@ -1,0 +1,1039 @@
+{
+  "name": "Real Estate Instant Lead Response & AI Qualifier — v1.0.0",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Receive Lead (SMS/Email)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "re-lead",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Validate Lead Fields",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.body.phone || $json.body.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.body.message || $json.body.property_address }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c3",
+              "leftValue": "={{ $json.body.agent_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "n3",
+      "name": "Extract Lead Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        680,
+        180
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "phone",
+              "value": "={{ $json.body.phone || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "f2",
+              "name": "email",
+              "value": "={{ $json.body.email || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "f3",
+              "name": "message",
+              "value": "={{ $json.body.message || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "f4",
+              "name": "agent_id",
+              "value": "={{ $json.body.agent_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f5",
+              "name": "property_address",
+              "value": "={{ $json.body.property_address || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "f6",
+              "name": "source",
+              "value": "={{ $json.body.source || 'unknown' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n4",
+      "name": "Check HubSpot Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        900,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filterGroups: [{ filters: [{ propertyName: 'phone', operator: 'EQ', value: $json.phone }] }], properties: ['id','phone','email','firstname','lastname'], limit: 1 }) }}"
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "n5",
+      "name": "Parse Contact Check",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        180
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "g1",
+              "name": "contact_id",
+              "value": "={{ $json.results && $json.results.length > 0 ? $json.results[0].id : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "g2",
+              "name": "phone",
+              "value": "={{ $('Extract Lead Fields').item.json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "g3",
+              "name": "email",
+              "value": "={{ $('Extract Lead Fields').item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "g4",
+              "name": "message",
+              "value": "={{ $('Extract Lead Fields').item.json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "g5",
+              "name": "agent_id",
+              "value": "={{ $('Extract Lead Fields').item.json.agent_id }}",
+              "type": "string"
+            },
+            {
+              "id": "g6",
+              "name": "property_address",
+              "value": "={{ $('Extract Lead Fields').item.json.property_address }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n6",
+      "name": "Build AI Classifier Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        180
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item = $input.first().json;\nconst prompt = `Classify this real estate lead intent.\\nMessage: \"${item.message}\"\\nProperty: \"${item.property_address}\"\\nReply ONLY with valid JSON: { \"intent\": \"ready-to-buy\"|\"just-browsing\"|\"info-seeking\", \"urgency\": \"high\"|\"medium\"|\"low\", \"property_type\": \"residential\"|\"commercial\"|\"multi-family\" }`;\nreturn [{ json: { ...item, ai_prompt: prompt } }];"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n7",
+      "name": "Classify Lead Intent (OpenAI)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
+        180
+      ],
+      "parameters": {
+        "resource": "chat",
+        "operation": "complete",
+        "chatModel": "gpt-4o-mini",
+        "prompt": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "={{ $json.ai_prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 200,
+          "temperature": 0.3
+        },
+        "simplifyOutput": false
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "n8",
+      "name": "Extract AI Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        180
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item = $input.first().json;\nlet intent = \"info-seeking\", urgency = \"low\", property_type = \"residential\";\ntry {\n  const raw = item.choices[0].message.content.trim();\n  const p = JSON.parse(raw);\n  intent = p.intent || intent;\n  urgency = p.urgency || urgency;\n  property_type = p.property_type || property_type;\n} catch(e) {}\nconst up = $(\"Parse Contact Check\").item.json;\nreturn [{ json: { ...up, intent, urgency, property_type } }];"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n9",
+      "name": "Compute Lead Score",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2000,
+        180
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "s2",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "s3",
+              "name": "message",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "s4",
+              "name": "agent_id",
+              "value": "={{ $json.agent_id }}",
+              "type": "string"
+            },
+            {
+              "id": "s5",
+              "name": "property_address",
+              "value": "={{ $json.property_address }}",
+              "type": "string"
+            },
+            {
+              "id": "s6",
+              "name": "contact_id",
+              "value": "={{ $json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "s7",
+              "name": "intent",
+              "value": "={{ $json.intent }}",
+              "type": "string"
+            },
+            {
+              "id": "s8",
+              "name": "urgency",
+              "value": "={{ $json.urgency }}",
+              "type": "string"
+            },
+            {
+              "id": "s9",
+              "name": "property_type",
+              "value": "={{ $json.property_type }}",
+              "type": "string"
+            },
+            {
+              "id": "s10",
+              "name": "lead_score",
+              "value": "={{ ($json.intent === 'ready-to-buy' ? 3 : $json.intent === 'just-browsing' ? 2 : 1) * 3 + ($json.urgency === 'high' ? 3 : $json.urgency === 'medium' ? 2 : 1) * 2 }}",
+              "type": "number"
+            },
+            {
+              "id": "s11",
+              "name": "scored_at",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n10",
+      "name": "Route by Contact Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2220,
+        180
+      ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "outputKey": "existing",
+              "renameOutput": true,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "sw1",
+                    "leftValue": "={{ $json.contact_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "new",
+              "renameOutput": true,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "sw2",
+                    "leftValue": "={{ $json.contact_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "empty",
+                      "singleValue": true
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n11",
+      "name": "Update Contact in HubSpot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2440,
+        60
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://api.hubapi.com/crm/v3/objects/contacts/' + $json.contact_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { re_lead_score: String($json.lead_score), re_intent: $json.intent, re_urgency: $json.urgency, re_last_message: $json.message, re_last_message_date: $json.scored_at } }) }}"
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "n12",
+      "name": "Create Contact in HubSpot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2440,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { phone: $json.phone, email: $json.email, hs_lead_status: 'NEW', re_intent: $json.intent, re_urgency: $json.urgency, re_lead_score: String($json.lead_score), re_property_address: $json.property_address, re_agent_id: $json.agent_id, re_scored_at: $json.scored_at } }) }}"
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "n13",
+      "name": "Format CRM Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2660,
+        180
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cr1",
+              "name": "contact_id",
+              "value": "={{ $json.id || $('Compute Lead Score').item.json.contact_id }}",
+              "type": "string"
+            },
+            {
+              "id": "cr2",
+              "name": "phone",
+              "value": "={{ $('Compute Lead Score').item.json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "cr3",
+              "name": "email",
+              "value": "={{ $('Compute Lead Score').item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "cr4",
+              "name": "lead_score",
+              "value": "={{ $('Compute Lead Score').item.json.lead_score }}",
+              "type": "number"
+            },
+            {
+              "id": "cr5",
+              "name": "intent",
+              "value": "={{ $('Compute Lead Score').item.json.intent }}",
+              "type": "string"
+            },
+            {
+              "id": "cr6",
+              "name": "urgency",
+              "value": "={{ $('Compute Lead Score').item.json.urgency }}",
+              "type": "string"
+            },
+            {
+              "id": "cr7",
+              "name": "timestamp",
+              "value": "={{ $('Compute Lead Score').item.json.scored_at }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n14",
+      "name": "Send SMS Response (Twilio)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        180
+      ],
+      "parameters": {
+        "resource": "sms",
+        "operation": "send",
+        "from": "+15550000000",
+        "to": "={{ $json.phone }}",
+        "message": "Thanks for your interest! Let's find you the perfect property. Book a call: [Add Calendly link] or reply to this message."
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n15",
+      "name": "Log Success (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3100,
+        180
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Lead Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "phone": "={{ $json.phone }}",
+            "contact_id": "={{ $json.contact_id }}",
+            "intent": "={{ $json.intent }}",
+            "urgency": "={{ $json.urgency }}",
+            "lead_score": "={{ $json.lead_score }}",
+            "status": "success"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "n16",
+      "name": "Format Error (Validation Failed)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        680,
+        480
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "error_message",
+              "value": "Required field missing: phone/email, message/property_address, or agent_id.",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "error_node",
+              "value": "Validate Lead Fields",
+              "type": "string"
+            },
+            {
+              "id": "e3",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e4",
+              "name": "webhook_payload",
+              "value": "={{ JSON.stringify($json.body || {}).slice(0,500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n17",
+      "name": "Format Error (CRM API Failed)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        480
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e5",
+              "name": "error_message",
+              "value": "={{ $json.statusCode === 401 ? 'HubSpot auth failed. Re-check the Private App token.' : 'HubSpot API error: ' + ($json.message || 'Unknown error') }}",
+              "type": "string"
+            },
+            {
+              "id": "e6",
+              "name": "error_node",
+              "value": "Check / Create / Update Contact in HubSpot",
+              "type": "string"
+            },
+            {
+              "id": "e7",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e8",
+              "name": "retry_attempts",
+              "value": "3",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n18",
+      "name": "Format Error (AI Timeout)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1560,
+        480
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e9",
+              "name": "error_message",
+              "value": "Lead classification timed out (OpenAI). Check OpenAI service status.",
+              "type": "string"
+            },
+            {
+              "id": "e10",
+              "name": "error_node",
+              "value": "Classify Lead Intent (OpenAI)",
+              "type": "string"
+            },
+            {
+              "id": "e11",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "e12",
+              "name": "message_snippet",
+              "value": "={{ ($('Extract Lead Fields').item.json.message || '').slice(0,100) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "n19",
+      "name": "Error Log Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        640
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Error Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "error_node": "={{ $json.error_node }}",
+            "error_message": "={{ $json.error_message }}",
+            "webhook_payload": "={{ $json.webhook_payload || $json.message_snippet || \"\" }}",
+            "status": "error"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "n20",
+      "name": "OVERVIEW",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        60,
+        40
+      ],
+      "parameters": {
+        "content": "## Real Estate Instant Lead Response & AI Qualifier — v1.0.0\n\nInbound SMS/WhatsApp → AI classifies intent → scores lead → HubSpot CRM → instant SMS reply\n\n**Required credentials:** Twilio · HubSpot (Private App) · OpenAI · Google Sheets\n\nSee README for full setup guide.",
+        "color": 1,
+        "width": 400,
+        "height": 180
+      }
+    },
+    {
+      "id": "n21",
+      "name": "AI Classifier Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1480,
+        40
+      ],
+      "parameters": {
+        "content": "**Model:** GPT-4o-mini\nPrompt built in \"Build AI Classifier Prompt\" node.\nTemp=0.3 → deterministic scoring.\nTo swap model: change `chatModel` value in node 7.",
+        "color": 2,
+        "width": 300,
+        "height": 140
+      }
+    },
+    {
+      "id": "n22",
+      "name": "CRM Configuration",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        40
+      ],
+      "parameters": {
+        "content": "**HubSpot** (Private App token) via HTTP Header Auth.\nTo switch to Pipedrive: change endpoints in nodes 4, 11, 12 + credential type.\n401 = auth fail · 429 = rate limit (retry ~5 min)",
+        "color": 3,
+        "width": 300,
+        "height": 140
+      }
+    }
+  ],
+  "connections": {
+    "Receive Lead (SMS/Email)": {
+      "main": [
+        [
+          {
+            "node": "Validate Lead Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Lead Fields": {
+      "main": [
+        [
+          {
+            "node": "Extract Lead Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error (Validation Failed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Lead Fields": {
+      "main": [
+        [
+          {
+            "node": "Check HubSpot Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check HubSpot Contact": {
+      "main": [
+        [
+          {
+            "node": "Parse Contact Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error (CRM API Failed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Contact Check": {
+      "main": [
+        [
+          {
+            "node": "Build AI Classifier Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Classifier Prompt": {
+      "main": [
+        [
+          {
+            "node": "Classify Lead Intent (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Lead Intent (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Extract AI Classification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error (AI Timeout)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract AI Classification": {
+      "main": [
+        [
+          {
+            "node": "Compute Lead Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Lead Score": {
+      "main": [
+        [
+          {
+            "node": "Route by Contact Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Contact Status": {
+      "main": [
+        [
+          {
+            "node": "Update Contact in HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Contact in HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Contact in HubSpot": {
+      "main": [
+        [
+          {
+            "node": "Format CRM Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error (CRM API Failed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Contact in HubSpot": {
+      "main": [
+        [
+          {
+            "node": "Format CRM Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error (CRM API Failed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format CRM Response": {
+      "main": [
+        [
+          {
+            "node": "Send SMS Response (Twilio)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS Response (Twilio)": {
+      "main": [
+        [
+          {
+            "node": "Log Success (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error (Validation Failed)": {
+      "main": [
+        [
+          {
+            "node": "Error Log Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error (CRM API Failed)": {
+      "main": [
+        [
+          {
+            "node": "Error Log Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error (AI Timeout)": {
+      "main": [
+        [
+          {
+            "node": "Error Log Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="220 170 1628 508" width="1628" height="508" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+<rect x="220" y="170" width="1628" height="508" fill="#ffffff"/>
+<path d="M1018 324.0 C1058 324.0 1010 324.0 1050 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1050" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M1618 424.0 C1658 424.0 1610 474.0 1650 474.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1650" cy="474.0" r="3" fill="#8c959f"/>
+<path d="M618 324.0 C658 324.0 610 324.0 650 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="650" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M1418 324.0 C1458 324.0 1410 224.0 1450 224.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1450" cy="224.0" r="3" fill="#8c959f"/>
+<path d="M1418 324.0 C1458 324.0 1410 424.0 1450 424.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1450" cy="424.0" r="3" fill="#8c959f"/>
+<path d="M1818 324.0 C1902.0 324.0 1566.0 474.0 1650 474.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="1650" cy="474.0" r="3" fill="#8c959f"/>
+<path d="M1218 324.0 C1302.0 324.0 966.0 524.0 1050 524.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1050" cy="524.0" r="3" fill="#8c959f"/>
+<path d="M1218 324.0 C1258 324.0 1210 324.0 1250 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1250" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M818 324.0 C858 324.0 810 324.0 850 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="850" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M1618 224.0 C1658 224.0 1610 324.0 1650 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1650" cy="324.0" r="3" fill="#8c959f"/>
+<path d="M418 324.0 C458 324.0 410 324.0 450 324.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="450" cy="324.0" r="3" fill="#8c959f"/>
+<rect x="250" y="300" width="168" height="48" rx="8" fill="#e3f6e8" stroke="#1a7f37" stroke-width="1.4"/>
+<text x="334.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Webhook</text>
+<rect x="450" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="534.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Extract Call Data</text>
+<rect x="650" y="300" width="168" height="48" rx="8" fill="#e4f0fd" stroke="#0969da" stroke-width="1.4"/>
+<text x="734.0" y="321.0" text-anchor="middle" font-size="12" fill="#1f2328">Transcribe with</text>
+<text x="734.0" y="335.0" text-anchor="middle" font-size="12" fill="#1f2328">Otter.ai</text>
+<rect x="850" y="300" width="168" height="48" rx="8" fill="#efe7fb" stroke="#6f42c1" stroke-width="1.4"/>
+<text x="934.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Analyze with OpenAI</text>
+<rect x="1050" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1134.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Parse AI Response</text>
+<rect x="1250" y="300" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1334.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Find HubSpot Contact</text>
+<rect x="1450" y="200" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1534.0" y="228.0" text-anchor="middle" font-size="12" fill="#1f2328">Update HubSpot Deal</text>
+<rect x="1450" y="400" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1534.0" y="428.0" text-anchor="middle" font-size="12" fill="#1f2328">Create Follow-Up Task</text>
+<rect x="1650" y="300" width="168" height="48" rx="8" fill="#e0f5f2" stroke="#0f766e" stroke-width="1.4"/>
+<text x="1734.0" y="328.0" text-anchor="middle" font-size="12" fill="#1f2328">Log to Google Sheets</text>
+<rect x="1650" y="450" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="1734.0" y="471.0" text-anchor="middle" font-size="12" fill="#1f2328">Send Slack Alert</text>
+<text x="1734.0" y="485.0" text-anchor="middle" font-size="12" fill="#1f2328">(Optional)</text>
+<rect x="1050" y="500" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1134.0" y="528.0" text-anchor="middle" font-size="12" fill="#1f2328">Check Confidence Score</text>
+<rect x="1250" y="600" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="1334.0" y="628.0" text-anchor="middle" font-size="12" fill="#1f2328">Log Error</text>
+</svg>

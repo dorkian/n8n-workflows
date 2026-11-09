@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="170 410 2308 608" width="2308" height="608" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+<rect x="170" y="410" width="2308" height="608" fill="#ffffff"/>
+<path d="M1148 464.0 C1194.0 464.0 1194.0 464.0 1240 464.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1240" cy="464.0" r="3" fill="#8c959f"/>
+<path d="M368 464.0 C414.0 464.0 414.0 464.0 460 464.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="460" cy="464.0" r="3" fill="#8c959f"/>
+<path d="M2188 664.0 C2234.0 664.0 2234.0 664.0 2280 664.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="2280" cy="664.0" r="3" fill="#8c959f"/>
+<path d="M2188 464.0 C2234.0 464.0 2234.0 464.0 2280 464.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="2280" cy="464.0" r="3" fill="#8c959f"/>
+<path d="M888 964.0 C934.0 964.0 934.0 964.0 980 964.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="980" cy="964.0" r="3" fill="#8c959f"/>
+<path d="M1408 964.0 C1622.0 964.0 766.0 964.0 980 964.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="980" cy="964.0" r="3" fill="#8c959f"/>
+<path d="M1668 664.0 C1714.0 664.0 1714.0 664.0 1760 664.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1760" cy="664.0" r="3" fill="#8c959f"/>
+<path d="M1668 464.0 C1714.0 464.0 1714.0 464.0 1760 464.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1760" cy="464.0" r="3" fill="#8c959f"/>
+<path d="M888 464.0 C934.0 464.0 934.0 464.0 980 464.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="980" cy="464.0" r="3" fill="#8c959f"/>
+<path d="M888 464.0 C972.0 464.0 636.0 964.0 720 964.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="720" cy="964.0" r="3" fill="#8c959f"/>
+<path d="M1408 464.0 C1454.0 464.0 1454.0 464.0 1500 464.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1500" cy="464.0" r="3" fill="#8c959f"/>
+<path d="M1408 464.0 C1454.0 464.0 1454.0 664.0 1500 664.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1500" cy="664.0" r="3" fill="#8c959f"/>
+<path d="M1408 464.0 C1492.0 464.0 1156.0 964.0 1240 964.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="1240" cy="964.0" r="3" fill="#8c959f"/>
+<path d="M1928 664.0 C1974.0 664.0 1974.0 664.0 2020 664.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="2020" cy="664.0" r="3" fill="#8c959f"/>
+<path d="M1928 664.0 C2532.0 664.0 116.0 964.0 720 964.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="720" cy="964.0" r="3" fill="#8c959f"/>
+<path d="M1928 464.0 C1974.0 464.0 1974.0 464.0 2020 464.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="2020" cy="464.0" r="3" fill="#8c959f"/>
+<path d="M1928 464.0 C2532.0 464.0 116.0 964.0 720 964.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="720" cy="964.0" r="3" fill="#8c959f"/>
+<path d="M2448 664.0 C3312.0 664.0 -144.0 964.0 720 964.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="720" cy="964.0" r="3" fill="#8c959f"/>
+<path d="M2448 464.0 C3312.0 464.0 -144.0 964.0 720 964.0" fill="none" stroke="#e5a5a5" stroke-width="1.2" stroke-dasharray="5 4"/>
+<circle cx="720" cy="964.0" r="3" fill="#8c959f"/>
+<path d="M628 464.0 C674.0 464.0 674.0 464.0 720 464.0" fill="none" stroke="#8c959f" stroke-width="1.6"/>
+<circle cx="720" cy="464.0" r="3" fill="#8c959f"/>
+<rect x="200" y="440" width="168" height="48" rx="8" fill="#e3f6e8" stroke="#1a7f37" stroke-width="1.4"/>
+<text x="284.0" y="468.0" text-anchor="middle" font-size="12" fill="#1f2328">Daily Schedule</text>
+<rect x="460" y="440" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="544.0" y="468.0" text-anchor="middle" font-size="12" fill="#1f2328">Workflow Config</text>
+<rect x="720" y="440" width="168" height="48" rx="8" fill="#e0f5f2" stroke="#0f766e" stroke-width="1.4"/>
+<text x="804.0" y="468.0" text-anchor="middle" font-size="12" fill="#1f2328">Read Scadenze Sheet</text>
+<rect x="980" y="440" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1064.0" y="468.0" text-anchor="middle" font-size="12" fill="#1f2328">Classify Rows</text>
+<rect x="1240" y="440" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1324.0" y="468.0" text-anchor="middle" font-size="12" fill="#1f2328">Route by Type</text>
+<rect x="1500" y="440" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1584.0" y="468.0" text-anchor="middle" font-size="12" fill="#1f2328">Group 7gg</text>
+<rect x="1760" y="440" width="168" height="48" rx="8" fill="#fff1d6" stroke="#9a6700" stroke-width="1.4"/>
+<text x="1844.0" y="468.0" text-anchor="middle" font-size="12" fill="#1f2328">Send 7gg Email</text>
+<rect x="2020" y="440" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="2104.0" y="468.0" text-anchor="middle" font-size="12" fill="#1f2328">Flatten 7gg</text>
+<rect x="2280" y="440" width="168" height="48" rx="8" fill="#e0f5f2" stroke="#0f766e" stroke-width="1.4"/>
+<text x="2364.0" y="468.0" text-anchor="middle" font-size="12" fill="#1f2328">Update 7gg Scadenze</text>
+<rect x="1500" y="640" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1584.0" y="668.0" text-anchor="middle" font-size="12" fill="#1f2328">Group 2gg</text>
+<rect x="1760" y="640" width="168" height="48" rx="8" fill="#fff1d6" stroke="#9a6700" stroke-width="1.4"/>
+<text x="1844.0" y="668.0" text-anchor="middle" font-size="12" fill="#1f2328">Send 2gg Email</text>
+<rect x="2020" y="640" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="2104.0" y="668.0" text-anchor="middle" font-size="12" fill="#1f2328">Flatten 2gg</text>
+<rect x="2280" y="640" width="168" height="48" rx="8" fill="#e0f5f2" stroke="#0f766e" stroke-width="1.4"/>
+<text x="2364.0" y="668.0" text-anchor="middle" font-size="12" fill="#1f2328">Update 2gg Scadenze</text>
+<rect x="720" y="940" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="804.0" y="968.0" text-anchor="middle" font-size="12" fill="#1f2328">Format Error</text>
+<rect x="980" y="940" width="168" height="48" rx="8" fill="#fde8e8" stroke="#b42318" stroke-width="1.4"/>
+<text x="1064.0" y="968.0" text-anchor="middle" font-size="12" fill="#1f2328">Log Errori</text>
+<rect x="1240" y="940" width="168" height="48" rx="8" fill="#f1f3f5" stroke="#57606a" stroke-width="1.4"/>
+<text x="1324.0" y="968.0" text-anchor="middle" font-size="12" fill="#1f2328">Format Invalid</text>
+</svg>

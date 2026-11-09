@@ -1,0 +1,1157 @@
+{
+  "name": "White-Label Weekly Client Report Generator",
+  "description": null,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "n1",
+      "name": "Weekly Monday 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Clients",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "n2",
+      "name": "Get Client Roster",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "n3",
+      "name": "Loop Per Client",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        640,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.client_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.client_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c3",
+              "leftValue": "={{ $json.client_email }}",
+              "rightValue": "@",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n4",
+      "name": "Validate Client Row",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        864,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.hubapi.com/crm/v3/objects/deals?limit=100&properties=amount,dealstage,createdate&filterGroups=[{\"filters\":[{\"propertyName\":\"createdate\",\"operator\":\"GTE\",\"value\":\"{{ $now.minus({days: $json.report_period_days || 7}).toMillis() }}\"}]}]",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "n5",
+      "name": "Fetch HubSpot Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1088,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "hs_new_deals",
+              "value": "={{ ($json.results || []).length }}",
+              "type": "number"
+            },
+            {
+              "id": "a2",
+              "name": "hs_pipeline_value",
+              "value": "={{ ($json.results || []).reduce((s,d) => s + Number(d.properties.amount || 0), 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a3",
+              "name": "hs_new_leads",
+              "value": "={{ ($json.results || []).length }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n6",
+      "name": "Extract HubSpot Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1312,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $('Loop Per Client').item.json.meta_ad_account_id }}/insights?fields=spend,impressions,clicks,actions&date_preset=last_{{ $('Loop Per Client').item.json.report_period_days || 7 }}d",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "n7",
+      "name": "Fetch Meta Ads Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1520,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "meta_spend",
+              "value": "={{ Number(($json.data?.[0]?.spend) || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a2",
+              "name": "meta_impressions",
+              "value": "={{ Number(($json.data?.[0]?.impressions) || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a3",
+              "name": "meta_clicks",
+              "value": "={{ Number(($json.data?.[0]?.clicks) || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a4",
+              "name": "meta_leads",
+              "value": "={{ Number((($json.data?.[0]?.actions) || []).find(a => a.action_type === 'lead')?.value || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a5",
+              "name": "meta_cpl",
+              "value": "={{ ($json.meta_leads > 0) ? ($json.meta_spend / $json.meta_leads) : 0 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n8",
+      "name": "Extract Meta Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1744,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://googleads.googleapis.com/v17/customers/{{ $('Loop Per Client').item.json.google_ads_customer_id }}/googleAds:searchStream",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "developer-token",
+              "value": "REPLACE_WITH_GOOGLE_ADS_DEVELOPER_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "n9",
+      "name": "Fetch Google Ads Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1968,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "gads_spend",
+              "value": "={{ Number(($json.results?.[0]?.metrics?.costMicros || 0)) / 1000000 }}",
+              "type": "number"
+            },
+            {
+              "id": "a2",
+              "name": "gads_impressions",
+              "value": "={{ Number($json.results?.[0]?.metrics?.impressions || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a3",
+              "name": "gads_clicks",
+              "value": "={{ Number($json.results?.[0]?.metrics?.clicks || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a4",
+              "name": "gads_conversions",
+              "value": "={{ Number($json.results?.[0]?.metrics?.conversions || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a5",
+              "name": "gads_cpc",
+              "value": "={{ ($json.gads_clicks > 0) ? ($json.gads_spend / $json.gads_clicks) : 0 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n10",
+      "name": "Extract Google Ads Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2192,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "client_id",
+              "value": "={{ $('Loop Per Client').item.json.client_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "client_name",
+              "value": "={{ $('Loop Per Client').item.json.client_name }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "client_email",
+              "value": "={{ $('Loop Per Client').item.json.client_email }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "client_logo_url",
+              "value": "={{ $('Loop Per Client').item.json.client_logo_url || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "report_subject",
+              "value": "={{ ($('Loop Per Client').item.json.report_subject || ($('Loop Per Client').item.json.client_name + ' - Weekly Performance Report')).replace(/—/g, '-').replace(/–/g, '-') }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "period_days",
+              "value": "={{ $('Loop Per Client').item.json.report_period_days || 7 }}",
+              "type": "number"
+            },
+            {
+              "id": "a7",
+              "name": "period_label",
+              "value": "={{ 'Last ' + ($('Loop Per Client').item.json.report_period_days || 7) + ' days' }}",
+              "type": "string"
+            },
+            {
+              "id": "a8",
+              "name": "hs_new_leads",
+              "value": "={{ $('Extract HubSpot Fields').item?.json?.hs_new_leads || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a9",
+              "name": "hs_new_deals",
+              "value": "={{ $('Extract HubSpot Fields').item?.json?.hs_new_deals || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a10",
+              "name": "hs_pipeline_value",
+              "value": "={{ $('Extract HubSpot Fields').item?.json?.hs_pipeline_value || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a11",
+              "name": "meta_spend",
+              "value": "={{ $('Extract Meta Fields').item?.json?.meta_spend || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a12",
+              "name": "meta_impressions",
+              "value": "={{ $('Extract Meta Fields').item?.json?.meta_impressions || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a13",
+              "name": "meta_clicks",
+              "value": "={{ $('Extract Meta Fields').item?.json?.meta_clicks || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a14",
+              "name": "meta_leads",
+              "value": "={{ $('Extract Meta Fields').item?.json?.meta_leads || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a15",
+              "name": "meta_cpl",
+              "value": "={{ $('Extract Meta Fields').item?.json?.meta_cpl || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a16",
+              "name": "gads_spend",
+              "value": "={{ $('Extract Google Ads Fields').item?.json?.gads_spend || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a17",
+              "name": "gads_impressions",
+              "value": "={{ $('Extract Google Ads Fields').item?.json?.gads_impressions || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a18",
+              "name": "gads_clicks",
+              "value": "={{ $('Extract Google Ads Fields').item?.json?.gads_clicks || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a19",
+              "name": "gads_conversions",
+              "value": "={{ $('Extract Google Ads Fields').item?.json?.gads_conversions || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a20",
+              "name": "gads_cpc",
+              "value": "={{ $('Extract Google Ads Fields').item?.json?.gads_cpc || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "a21",
+              "name": "total_ad_spend",
+              "value": "={{ ($('Extract Meta Fields').item?.json?.meta_spend || 0) + ($('Extract Google Ads Fields').item?.json?.gads_spend || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a22",
+              "name": "total_clicks",
+              "value": "={{ ($('Extract Meta Fields').item?.json?.meta_clicks || 0) + ($('Extract Google Ads Fields').item?.json?.gads_clicks || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a23",
+              "name": "total_impressions",
+              "value": "={{ ($('Extract Meta Fields').item?.json?.meta_impressions || 0) + ($('Extract Google Ads Fields').item?.json?.gads_impressions || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "a99",
+              "name": "openai_body",
+              "value": "={{ JSON.stringify({model:'gpt-4o-mini',temperature:0.3,max_tokens:500,messages:[{role:'system',content:'You are a performance marketing analyst. Write a 150-word commentary on the week performance for the agency to send to their client. Be factual, highlight wins and concerns, suggest one action for next week. Use ONLY standard ASCII punctuation: no em-dashes, no en-dashes, no smart quotes, no curly apostrophes. Use plain hyphens and straight quotes. No emojis. No bullet points.'},{role:'user',content:'Client: '+$json.client_name+'. Period: '+$json.period_label+'. New leads: '+$json.hs_new_leads+'. New deals: '+$json.hs_new_deals+'. Pipeline value: '+$json.hs_pipeline_value+'. Meta spend: '+$json.meta_spend+'. Meta leads: '+$json.meta_leads+'. Meta CPL: '+$json.meta_cpl+'. Google Ads spend: '+$json.gads_spend+'. Google Ads conversions: '+$json.gads_conversions+'. Google Ads CPC: '+$json.gads_cpc+'. Total ad spend: '+$json.total_ad_spend+'. Total clicks: '+$json.total_clicks}]}) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n11",
+      "name": "Combine Metrics",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2400,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.openai_body }}",
+        "options": {
+          "timeout": 60000
+        },
+        "contentType": "json"
+      },
+      "id": "n12",
+      "name": "AI Narrative Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2624,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "narrative",
+              "value": "={{ ($json.choices?.[0]?.message?.content || 'Performance summary unavailable.').replace(/—/g, '-').replace(/–/g, '-').replace(/[‘’]/g, \"'\").replace(/[“”]/g, '\"').replace(/€/g, 'EUR ') }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "html",
+              "value": "=<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>body{font-family:Arial,Helvetica,sans-serif;color:#222;max-width:760px;margin:32px auto;padding:0 24px}h1{font-size:24px;border-bottom:2px solid #111;padding-bottom:8px}.logo{max-height:64px;margin-bottom:16px}.kpi-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:24px 0}.kpi{border:1px solid #e5e5e5;border-radius:8px;padding:12px}.kpi .label{font-size:11px;color:#666;text-transform:uppercase}.kpi .value{font-size:22px;font-weight:600;margin-top:4px}.section{margin-top:24px}.narrative{background:#fafafa;border-left:3px solid #111;padding:16px;font-size:14px;line-height:1.6}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}th{background:#f5f5f5}</style></head><body>{{ $('Combine Metrics').item.json.client_logo_url ? '<img class=\"logo\" src=\"' + $('Combine Metrics').item.json.client_logo_url + '\" />' : '' }}<h1>{{ $('Combine Metrics').item.json.client_name }} - Weekly Performance Report</h1><p style=\"color:#666;font-size:13px\">{{ $('Combine Metrics').item.json.period_label }}</p><div class=\"kpi-grid\"><div class=\"kpi\"><div class=\"label\">New Leads</div><div class=\"value\">{{ $('Combine Metrics').item.json.hs_new_leads }}</div></div><div class=\"kpi\"><div class=\"label\">New Deals</div><div class=\"value\">{{ $('Combine Metrics').item.json.hs_new_deals }}</div></div><div class=\"kpi\"><div class=\"label\">Pipeline Value</div><div class=\"value\">EUR {{ Number($('Combine Metrics').item.json.hs_pipeline_value).toFixed(0) }}</div></div><div class=\"kpi\"><div class=\"label\">Total Ad Spend</div><div class=\"value\">EUR {{ Number($('Combine Metrics').item.json.total_ad_spend).toFixed(0) }}</div></div><div class=\"kpi\"><div class=\"label\">Total Clicks</div><div class=\"value\">{{ $('Combine Metrics').item.json.total_clicks }}</div></div><div class=\"kpi\"><div class=\"label\">Impressions</div><div class=\"value\">{{ $('Combine Metrics').item.json.total_impressions }}</div></div></div><div class=\"section\"><h3>Performance Commentary</h3><div class=\"narrative\">{{ $json.narrative }}</div></div><div class=\"section\"><h3>Channel Breakdown</h3><table><tr><th>Channel</th><th>Spend</th><th>Leads / Conv.</th><th>CPL / CPC</th></tr><tr><td>Meta Ads</td><td>EUR {{ Number($('Combine Metrics').item.json.meta_spend).toFixed(2) }}</td><td>{{ $('Combine Metrics').item.json.meta_leads }}</td><td>EUR {{ Number($('Combine Metrics').item.json.meta_cpl).toFixed(2) }}</td></tr><tr><td>Google Ads</td><td>EUR {{ Number($('Combine Metrics').item.json.gads_spend).toFixed(2) }}</td><td>{{ $('Combine Metrics').item.json.gads_conversions }}</td><td>EUR {{ Number($('Combine Metrics').item.json.gads_cpc).toFixed(2) }}</td></tr></table></div></body></html>",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n13",
+      "name": "Build HTML Report",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2848,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfshift.io/v3/convert/pdf",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({source:$json.html,format:'A4'}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 60000
+        },
+        "contentType": "json"
+      },
+      "id": "n14",
+      "name": "Render PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3072,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Combine Metrics').item.json.client_email }}",
+        "subject": "={{ $('Combine Metrics').item.json.report_subject }}",
+        "message": "=<p>Hi {{ $('Combine Metrics').item.json.client_name }},</p><p>Please find attached your performance report for {{ $('Combine Metrics').item.json.period_label }}.</p><p>Reply to this email if you'd like to discuss any of the numbers.</p><p>â€” Your agency team</p>",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "id": "n15",
+      "name": "Send Branded Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3280,
+        304
+      ],
+      "webhookId": "598accf5-134d-4b0b-954a-e407cd890a29",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Run Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $now.toISO() }}",
+            "client_id": "={{ $('Combine Metrics').item.json.client_id }}",
+            "status": "ok",
+            "email_message_id": "={{ $json.id || '' }}",
+            "period_label": "={{ $('Combine Metrics').item.json.period_label }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_id",
+              "displayName": "client_id",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email_message_id",
+              "displayName": "email_message_id",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "period_label",
+              "displayName": "period_label",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n16",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3504,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "error_message",
+              "value": "={{ $json.error?.message || $json.error || $json.message || 'Unknown error' }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "error_node",
+              "value": "={{ $prevNode?.name || 'unknown' }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "client_id",
+              "value": "={{ $('Loop Per Client').item.json.client_id || 'unknown' }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($input.first().json).slice(0, 500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n17",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1088,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Error Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "workflow_name": "={{ $json.workflow_name }}",
+            "client_id": "={{ $json.client_id }}",
+            "error_node": "={{ $json.error_node }}",
+            "error_message": "={{ $json.error_message }}",
+            "input_data": "={{ $json.input_data }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflow_name",
+              "displayName": "workflow_name",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_id",
+              "displayName": "client_id",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_node",
+              "displayName": "error_node",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_message",
+              "displayName": "error_message",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "input_data",
+              "displayName": "input_data",
+              "required": false,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n18",
+      "name": "Error Log Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1312,
+        704
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "all-my-agency"
+        },
+        "text": "=:warning: Client report failed - {{ $json.client_id }}\nNode: {{ $json.error_node }}\nError: {{ $json.error_message ? String($json.error_message).slice(0, 200) : 'unknown' }}",
+        "otherOptions": {}
+      },
+      "id": "n19",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1520,
+        704
+      ],
+      "alwaysOutputData": true,
+      "webhookId": "03b1037b-cfb4-4162-b4c4-faa18e5c34c9",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## WHITE-LABEL WEEKLY CLIENT REPORT GENERATOR â€” v1.0.0\n\nEvery Monday at 8am, loops over your client roster (Google Sheet) and emails each client a branded PDF performance report.\n\n### Required \"Clients\" sheet columns\n`client_id` Â· `client_name` Â· `client_email` Â· `client_logo_url` Â· `hubspot_portal_id` Â· `meta_ad_account_id` Â· `google_ads_customer_id` Â· `report_period_days` Â· `report_subject`\n\n### Setup\n1. Replace `REPLACE_WITH_SHEET_ID` in nodes 2, 16, 18 with your Google Sheet ID.\n2. Configure 8 credentials (see README): Google Sheets OAuth, HubSpot Header Auth, Meta Header Auth, Google Ads OAuth + dev token, OpenAI Header Auth, PDFShift Basic Auth, Gmail OAuth, Slack Bot Token.\n3. Test with 1 client row before activating the schedule.",
+        "height": 280,
+        "width": 720
+      },
+      "id": "n20",
+      "name": "Sticky â€” Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        128,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### AI Narrative\nModel: `gpt-4o-mini`, temp `0.3`, max 500 tokens.\n\nPrompt is in this node's JSON body. To swap to Anthropic Claude, replace the URL with `https://api.anthropic.com/v1/messages` and adjust the body to Anthropic's schema (~30% cheaper for this length).",
+        "height": 180,
+        "width": 320
+      },
+      "id": "n21",
+      "name": "Sticky â€” AI Model",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2592,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### PDFShift\nFree tier: 50 PDFs/month. â‚¬9/mo for 500.\n\nFor higher volume, swap to self-hosted Gotenberg (Docker): change URL to `http://gotenberg:3000/forms/chromium/convert/html` and remove the Basic Auth credential.",
+        "height": 180,
+        "width": 320
+      },
+      "id": "n22",
+      "name": "Sticky â€” PDFShift",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3024,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Email delivery\nSent from your authenticated Gmail. To send from agency domain: configure a Gmail \"Send As\" alias OR swap this node for SMTP (Mailgun, SES, Postmark).\n\nRetry is OFF on this node â€” Gmail accepts duplicate sends silently.",
+        "width": 320
+      },
+      "id": "n23",
+      "name": "Sticky â€” Gmail / SMTP",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3248,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Error path\nAll error outputs from HTTP nodes + Validate FALSE branch converge here:\n**Format Error â†’ Error Log Sheet â†’ Send Slack Alert â†’ continue loop to next client.**\n\nTo rewire alerts: replace Slack with Discord webhook, Email send, or Microsoft Teams. Error Log Sheet is the buyer's audit trail â€” keep it.",
+        "height": 140,
+        "width": 700
+      },
+      "id": "n24",
+      "name": "Sticky â€” Error Path",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        544
+      ]
+    }
+  ],
+  "connections": {
+    "Weekly Monday 8am": {
+      "main": [
+        [
+          {
+            "node": "Get Client Roster",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Client Roster": {
+      "main": [
+        [
+          {
+            "node": "Loop Per Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Per Client": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Validate Client Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Client Row": {
+      "main": [
+        [
+          {
+            "node": "Fetch HubSpot Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch HubSpot Metrics": {
+      "main": [
+        [
+          {
+            "node": "Extract HubSpot Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract HubSpot Fields": {
+      "main": [
+        [
+          {
+            "node": "Fetch Meta Ads Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Meta Ads Insights": {
+      "main": [
+        [
+          {
+            "node": "Extract Meta Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Meta Fields": {
+      "main": [
+        [
+          {
+            "node": "Fetch Google Ads Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Google Ads Report": {
+      "main": [
+        [
+          {
+            "node": "Extract Google Ads Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Google Ads Fields": {
+      "main": [
+        [
+          {
+            "node": "Combine Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Metrics": {
+      "main": [
+        [
+          {
+            "node": "AI Narrative Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Narrative Summary": {
+      "main": [
+        [
+          {
+            "node": "Build HTML Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML Report": {
+      "main": [
+        [
+          {
+            "node": "Render PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render PDF": {
+      "main": [
+        [
+          {
+            "node": "Send Branded Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Branded Email": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Success": {
+      "main": [
+        [
+          {
+            "node": "Loop Per Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error": {
+      "main": [
+        [
+          {
+            "node": "Error Log Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Log Sheet": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Loop Per Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "activeVersion": null
+}

@@ -1,0 +1,2 @@
+client_id,client_name,client_email,client_logo_url,hubspot_portal_id,meta_ad_account_id,google_ads_customer_id,report_period_days,report_subject
+acme,Acme Ltd,reports@example.com,https://example.com/logo.png,12345678,act_987654321,1234567890,7,

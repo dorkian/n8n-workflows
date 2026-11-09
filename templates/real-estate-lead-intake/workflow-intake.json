@@ -1,0 +1,2247 @@
+{
+  "name": "Real Estate Lead Intake — n8n Template",
+  "description": null,
+  "nodes": [
+    {
+      "id": "sticky-overview-s01",
+      "name": "WHAT THIS WORKFLOW DOES",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        80
+      ],
+      "parameters": {
+        "content": "## Real Estate Lead Intake\n\nReceives property inquiries via webhook, classifies them with GPT-4o-mini (urgency, type, budget), logs to Google Sheets, and sends a personalized first reply within 60 seconds.\n\n**Setup:** Point your web form to POST to the webhook URL shown in the Receive Lead node.",
+        "height": 130,
+        "width": 520,
+        "color": 7
+      }
+    },
+    {
+      "id": "sticky-validation-s02",
+      "name": "VALIDATION",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        300,
+        60
+      ],
+      "parameters": {
+        "content": "**Validation**\n\nChecks that name, email or phone, and message are all present. Invalid submissions are logged to the Error Log sheet and silently dropped - the lead is never lost, just flagged.",
+        "height": 100,
+        "width": 300,
+        "color": 4
+      }
+    },
+    {
+      "id": "sticky-aiprompt-s03",
+      "name": "CUSTOMIZE AI PROMPT",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        760,
+        60
+      ],
+      "parameters": {
+        "content": "**Customize AI Prompt**\n\nEdit the 'Build AI Prompt' node to change classification labels, reply language, or agency name. The prompt is injected at runtime - no changes needed in the OpenAI node itself.",
+        "height": 100,
+        "width": 360,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky-replyemail-s04",
+      "name": "CUSTOMIZE REPLY EMAIL",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1620,
+        60
+      ],
+      "parameters": {
+        "content": "**Customize Reply Email**\n\nEdit the subject and body template in 'Build Reply Email'. The variable `$json.first_reply_text` is the AI-generated reply. Wrap it in your brand HTML or keep it plain text.",
+        "height": 100,
+        "width": 360,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky-errors-s05",
+      "name": "ERROR BRANCHES",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        300,
+        600
+      ],
+      "parameters": {
+        "content": "**Error Branches**\n\nAll API errors (OpenAI, Sheets, Gmail) and validation failures land in the 'Error Log' node with a structured record. Extend by connecting a Slack or email alert node after 'Error Log'.",
+        "height": 110,
+        "width": 500,
+        "color": 1
+      }
+    },
+    {
+      "id": "recv-lead-001",
+      "name": "Receive Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "real-estate-lead",
+        "options": {},
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
+      },
+      "webhookId": "a8b3c4d5-e6f7-8901-abcd-ef2345678901"
+    },
+    {
+      "id": "if-validate-002",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        420,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-val-1",
+              "leftValue": "={{ $json.body != null && Boolean($json.body.name) && ($json.body.message || '').length > 5 && (Boolean($json.body.email) && $json.body.email.includes('@') || Boolean($json.body.phone)) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "set-valerr-003",
+      "name": "Validation Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        460
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ve001",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "ve002",
+              "name": "workflow_name",
+              "value": "Real Estate Lead Intake",
+              "type": "string"
+            },
+            {
+              "id": "ve003",
+              "name": "error_node",
+              "value": "Validate Input",
+              "type": "string"
+            },
+            {
+              "id": "ve004",
+              "name": "error_message",
+              "value": "Validation failed: name, contact (email or phone), and message (>5 chars) are all required.",
+              "type": "string"
+            },
+            {
+              "id": "ve005",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($json.body || {}).slice(0,500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "set-extract-003",
+      "name": "Extract & Normalize Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        180
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a001",
+              "name": "lead_id",
+              "value": "={{ $now.toMillis().toString(36) + '-' + Math.random().toString(36).slice(2,10) }}",
+              "type": "string"
+            },
+            {
+              "id": "a002",
+              "name": "name",
+              "value": "={{ ($json.body.name || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "a003",
+              "name": "email",
+              "value": "={{ ($json.body.email || '').trim().toLowerCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "a004",
+              "name": "phone",
+              "value": "={{ ($json.body.phone || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "a005",
+              "name": "message",
+              "value": "={{ ($json.body.message || '').trim().slice(0,1000) }}",
+              "type": "string"
+            },
+            {
+              "id": "a006",
+              "name": "source",
+              "value": "={{ $json.body.source || 'web_form' }}",
+              "type": "string"
+            },
+            {
+              "id": "a007",
+              "name": "received_at",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "set-prompt-004",
+      "name": "Build AI Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        860,
+        180
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p001",
+              "name": "prompt",
+              "value": "=Analyze this real estate inquiry and return ONLY valid JSON with these exact keys: property_type (one of rent/buy/sell/info), urgency (one of hot/warm/cold), budget_range (e.g. ?1200/month or unknown), first_reply_text (2-3 sentence warm reply in same language as message, acknowledge inquiry, promise follow-up within 24 hours, sign off as The Agency Team). Lead name: {{ $json.name }}. Source: {{ $json.source }}. Message: {{ $json.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-classify-005",
+      "name": "AI Classify & Draft Reply",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        180
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "resource": "chat",
+        "chatModel": "gpt-4o-mini",
+        "simplifyOutput": true,
+        "maxTokens": 900,
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are a real estate assistant. Respond only in valid JSON."
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "responseFormat": "json_object"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAIAPI_CREDENTIAL_ID",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "set-aierr-007",
+      "name": "Format AI Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1080,
+        460
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ae001",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "ae002",
+              "name": "workflow_name",
+              "value": "Real Estate Lead Intake",
+              "type": "string"
+            },
+            {
+              "id": "ae003",
+              "name": "error_node",
+              "value": "AI Classify & Draft Reply",
+              "type": "string"
+            },
+            {
+              "id": "ae004",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'OpenAI API error after 3 retries' }}",
+              "type": "string"
+            },
+            {
+              "id": "ae005",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($json).slice(0,500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "set-leadrow-006",
+      "name": "Prepare Lead Row",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        180
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "lr001",
+              "name": "timestamp",
+              "value": "={{ $('Extract & Normalize Fields').item.json.received_at }}",
+              "type": "string"
+            },
+            {
+              "id": "lr002",
+              "name": "lead_id",
+              "value": "={{ $('Extract & Normalize Fields').item.json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "lr003",
+              "name": "source",
+              "value": "={{ $('Extract & Normalize Fields').item.json.source }}",
+              "type": "string"
+            },
+            {
+              "id": "lr004",
+              "name": "name",
+              "value": "={{ $('Extract & Normalize Fields').item.json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "lr005",
+              "name": "email",
+              "value": "={{ $('Extract & Normalize Fields').item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "lr006",
+              "name": "phone",
+              "value": "={{ $('Extract & Normalize Fields').item.json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "lr007",
+              "name": "message",
+              "value": "={{ $('Extract & Normalize Fields').item.json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "lr008",
+              "name": "property_type",
+              "value": "={{ JSON.parse($json.content).property_type || 'info' }}",
+              "type": "string"
+            },
+            {
+              "id": "lr009",
+              "name": "urgency",
+              "value": "={{ JSON.parse($json.content).urgency || 'cold' }}",
+              "type": "string"
+            },
+            {
+              "id": "lr010",
+              "name": "budget_range",
+              "value": "={{ JSON.parse($json.content).budget_range || 'unknown' }}",
+              "type": "string"
+            },
+            {
+              "id": "lr011",
+              "name": "first_reply_text",
+              "value": "={{ JSON.parse($json.content).first_reply_text || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "lr012",
+              "name": "first_reply_sent",
+              "value": "no",
+              "type": "string"
+            },
+            {
+              "id": "lr013",
+              "name": "first_reply_sent_at",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "lr014",
+              "name": "followup_count",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "lr015",
+              "name": "next_followup_date",
+              "value": "={{ DateTime.now().toFormat('yyyy-MM-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "lr016",
+              "name": "status",
+              "value": "new",
+              "type": "string"
+            },
+            {
+              "id": "lr017",
+              "name": "last_updated",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "gs-logsheet-007",
+      "name": "Log Lead to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1520,
+        180
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_SPREADSHEET_ID_HERE"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Master Lead Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "lead_id": "={{ $json.lead_id }}",
+            "source": "={{ $json.source }}",
+            "name": "={{ $json.name }}",
+            "email": "={{ $json.email }}",
+            "phone": "={{ $json.phone }}",
+            "message": "={{ $json.message }}",
+            "property_type": "={{ $json.property_type }}",
+            "urgency": "={{ $json.urgency }}",
+            "budget_range": "={{ $json.budget_range }}",
+            "first_reply_sent": "={{ $json.first_reply_sent }}",
+            "first_reply_sent_at": "={{ $json.first_reply_sent_at }}",
+            "followup_count": "={{ $json.followup_count }}",
+            "next_followup_date": "={{ $json.next_followup_date }}",
+            "status": "={{ $json.status }}",
+            "last_updated": "={{ $json.last_updated }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "property_type",
+              "displayName": "property_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "budget_range",
+              "displayName": "budget_range",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "first_reply_sent",
+              "displayName": "first_reply_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "first_reply_sent_at",
+              "displayName": "first_reply_sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "followup_count",
+              "displayName": "followup_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "next_followup_date",
+              "displayName": "next_followup_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "last_updated",
+              "displayName": "last_updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {},
+        "range": "A:P"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "set-sheetserr-010",
+      "name": "Format Sheets Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1520,
+        460
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "se001",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "se002",
+              "name": "workflow_name",
+              "value": "Real Estate Lead Intake",
+              "type": "string"
+            },
+            {
+              "id": "se003",
+              "name": "error_node",
+              "value": "Log Lead to Sheet",
+              "type": "string"
+            },
+            {
+              "id": "se004",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Google Sheets write error' }}",
+              "type": "string"
+            },
+            {
+              "id": "se005",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($json).slice(0,500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "set-replyemail-008",
+      "name": "Build Reply Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1740,
+        180
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "re001",
+              "name": "to_email",
+              "value": "={{ $('Prepare Lead Row').item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "re002",
+              "name": "subject",
+              "value": "=Re: Your property inquiry - we received your message",
+              "type": "string"
+            },
+            {
+              "id": "re003",
+              "name": "body_html",
+              "value": "=<p>{{ $('Prepare Lead Row').item.json.first_reply_text }}</p><br><p><em>- The Agency Team</em></p>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "gmail-sendreply-009",
+      "name": "Send First Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1960,
+        180
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.to_email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.body_html }}"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAILOAUTH2_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "set-gmaillerr-013",
+      "name": "Format Gmail Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1960,
+        460
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ge001",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "ge002",
+              "name": "workflow_name",
+              "value": "Real Estate Lead Intake",
+              "type": "string"
+            },
+            {
+              "id": "ge003",
+              "name": "error_node",
+              "value": "Send First Reply",
+              "type": "string"
+            },
+            {
+              "id": "ge004",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Gmail send error' }}",
+              "type": "string"
+            },
+            {
+              "id": "ge005",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($json).slice(0,500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "gs-errlog-014",
+      "name": "Error Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1300,
+        660
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_SPREADSHEET_ID_HERE"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Error Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "workflow_name": "={{ $json.workflow_name }}",
+            "error_node": "={{ $json.error_node }}",
+            "error_message": "={{ $json.error_message }}",
+            "input_data": "={{ $json.input_data }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "workflow_name",
+              "displayName": "workflow_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "error_node",
+              "displayName": "error_node",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "error_message",
+              "displayName": "error_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "input_data",
+              "displayName": "input_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {},
+        "range": "A:E"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Lead": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Extract & Normalize Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Error": {
+      "main": [
+        [
+          {
+            "node": "Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract & Normalize Fields": {
+      "main": [
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Classify & Draft Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Classify & Draft Reply": {
+      "main": [
+        [
+          {
+            "node": "Prepare Lead Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format AI Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format AI Error": {
+      "main": [
+        [
+          {
+            "node": "Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Lead Row": {
+      "main": [
+        [
+          {
+            "node": "Log Lead to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Lead to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Build Reply Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Sheets Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Sheets Error": {
+      "main": [
+        [
+          {
+            "node": "Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reply Email": {
+      "main": [
+        [
+          {
+            "node": "Send First Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send First Reply": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Format Gmail Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Gmail Error": {
+      "main": [
+        [
+          {
+            "node": "Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "activeVersionId": "4cc6b27e-1759-488a-b409-878c3f53327a",
+  "versionCounter": 27,
+  "activeVersion": {
+    "updatedAt": "2026-05-11T20:06:11.693Z",
+    "createdAt": "2026-05-11T20:06:11.693Z",
+    "versionId": "4cc6b27e-1759-488a-b409-878c3f53327a",
+    "workflowId": "wB6Yuyx4GhxG65hX",
+    "nodes": [
+      {
+        "id": "sticky-overview-s01",
+        "name": "WHAT THIS WORKFLOW DOES",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          -20,
+          80
+        ],
+        "parameters": {
+          "content": "## Real Estate Lead Intake\n\nReceives property inquiries via webhook, classifies them with GPT-4o-mini (urgency, type, budget), logs to Google Sheets, and sends a personalized first reply within 60 seconds.\n\n**Setup:** Point your web form to POST to the webhook URL shown in the Receive Lead node.",
+          "height": 130,
+          "width": 520,
+          "color": 7
+        }
+      },
+      {
+        "id": "sticky-validation-s02",
+        "name": "VALIDATION",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          300,
+          60
+        ],
+        "parameters": {
+          "content": "**Validation**\n\nChecks that name, email or phone, and message are all present. Invalid submissions are logged to the Error Log sheet and silently dropped - the lead is never lost, just flagged.",
+          "height": 100,
+          "width": 300,
+          "color": 4
+        }
+      },
+      {
+        "id": "sticky-aiprompt-s03",
+        "name": "CUSTOMIZE AI PROMPT",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          760,
+          60
+        ],
+        "parameters": {
+          "content": "**Customize AI Prompt**\n\nEdit the 'Build AI Prompt' node to change classification labels, reply language, or agency name. The prompt is injected at runtime - no changes needed in the OpenAI node itself.",
+          "height": 100,
+          "width": 360,
+          "color": 5
+        }
+      },
+      {
+        "id": "sticky-replyemail-s04",
+        "name": "CUSTOMIZE REPLY EMAIL",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          1620,
+          60
+        ],
+        "parameters": {
+          "content": "**Customize Reply Email**\n\nEdit the subject and body template in 'Build Reply Email'. The variable `$json.first_reply_text` is the AI-generated reply. Wrap it in your brand HTML or keep it plain text.",
+          "height": 100,
+          "width": 360,
+          "color": 5
+        }
+      },
+      {
+        "id": "sticky-errors-s05",
+        "name": "ERROR BRANCHES",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          300,
+          600
+        ],
+        "parameters": {
+          "content": "**Error Branches**\n\nAll API errors (OpenAI, Sheets, Gmail) and validation failures land in the 'Error Log' node with a structured record. Extend by connecting a Slack or email alert node after 'Error Log'.",
+          "height": 110,
+          "width": 500,
+          "color": 1
+        }
+      },
+      {
+        "id": "recv-lead-001",
+        "name": "Receive Lead",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          200,
+          300
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "real-estate-lead",
+          "options": {},
+          "responseMode": "onReceived",
+          "responseData": "firstEntryJson"
+        },
+        "webhookId": "a8b3c4d5-e6f7-8901-abcd-ef2345678901"
+      },
+      {
+        "id": "if-validate-002",
+        "name": "Validate Input",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          420,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "cond-val-1",
+                "leftValue": "={{ $json.body != null && Boolean($json.body.name) && ($json.body.message || '').length > 5 && (Boolean($json.body.email) && $json.body.email.includes('@') || Boolean($json.body.phone)) }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "set-valerr-003",
+        "name": "Validation Error",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          640,
+          460
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "ve001",
+                "name": "timestamp",
+                "value": "={{ DateTime.now().toISO() }}",
+                "type": "string"
+              },
+              {
+                "id": "ve002",
+                "name": "workflow_name",
+                "value": "Real Estate Lead Intake",
+                "type": "string"
+              },
+              {
+                "id": "ve003",
+                "name": "error_node",
+                "value": "Validate Input",
+                "type": "string"
+              },
+              {
+                "id": "ve004",
+                "name": "error_message",
+                "value": "Validation failed: name, contact (email or phone), and message (>5 chars) are all required.",
+                "type": "string"
+              },
+              {
+                "id": "ve005",
+                "name": "input_data",
+                "value": "={{ JSON.stringify($json.body || {}).slice(0,500) }}",
+                "type": "string"
+              }
+            ]
+          },
+          "includeOtherFields": false,
+          "options": {}
+        }
+      },
+      {
+        "id": "set-extract-003",
+        "name": "Extract & Normalize Fields",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          640,
+          180
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "a001",
+                "name": "lead_id",
+                "value": "={{ $now.toMillis().toString(36) + '-' + Math.random().toString(36).slice(2,10) }}",
+                "type": "string"
+              },
+              {
+                "id": "a002",
+                "name": "name",
+                "value": "={{ ($json.body.name || '').trim() }}",
+                "type": "string"
+              },
+              {
+                "id": "a003",
+                "name": "email",
+                "value": "={{ ($json.body.email || '').trim().toLowerCase() }}",
+                "type": "string"
+              },
+              {
+                "id": "a004",
+                "name": "phone",
+                "value": "={{ ($json.body.phone || '').trim() }}",
+                "type": "string"
+              },
+              {
+                "id": "a005",
+                "name": "message",
+                "value": "={{ ($json.body.message || '').trim().slice(0,1000) }}",
+                "type": "string"
+              },
+              {
+                "id": "a006",
+                "name": "source",
+                "value": "={{ $json.body.source || 'web_form' }}",
+                "type": "string"
+              },
+              {
+                "id": "a007",
+                "name": "received_at",
+                "value": "={{ DateTime.now().toISO() }}",
+                "type": "string"
+              }
+            ]
+          },
+          "includeOtherFields": false,
+          "options": {}
+        }
+      },
+      {
+        "id": "set-prompt-004",
+        "name": "Build AI Prompt",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          860,
+          180
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "p001",
+                "name": "prompt",
+                "value": "=Analyze this real estate inquiry and return ONLY valid JSON with these exact keys: property_type (one of rent/buy/sell/info), urgency (one of hot/warm/cold), budget_range (e.g. ?1200/month or unknown), first_reply_text (2-3 sentence warm reply in same language as message, acknowledge inquiry, promise follow-up within 24 hours, sign off as The Agency Team). Lead name: {{ $json.name }}. Source: {{ $json.source }}. Message: {{ $json.message }}",
+                "type": "string"
+              }
+            ]
+          },
+          "includeOtherFields": true,
+          "options": {}
+        }
+      },
+      {
+        "id": "ai-classify-005",
+        "name": "AI Classify & Draft Reply",
+        "type": "n8n-nodes-base.openAi",
+        "typeVersion": 1.1,
+        "position": [
+          1080,
+          180
+        ],
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "parameters": {
+          "resource": "chat",
+          "chatModel": "gpt-4o-mini",
+          "simplifyOutput": true,
+          "maxTokens": 900,
+          "prompt": {
+            "messages": [
+              {
+                "role": "system",
+                "content": "You are a real estate assistant. Respond only in valid JSON."
+              },
+              {
+                "role": "user",
+                "content": "={{ $json.prompt }}"
+              }
+            ]
+          },
+          "options": {
+            "temperature": 0.3,
+            "responseFormat": "json_object"
+          }
+        },
+        "credentials": {
+          "openAiApi": {
+            "id": "7qgzz4KzM4wb2klz",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "id": "set-aierr-007",
+        "name": "Format AI Error",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1080,
+          460
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "ae001",
+                "name": "timestamp",
+                "value": "={{ DateTime.now().toISO() }}",
+                "type": "string"
+              },
+              {
+                "id": "ae002",
+                "name": "workflow_name",
+                "value": "Real Estate Lead Intake",
+                "type": "string"
+              },
+              {
+                "id": "ae003",
+                "name": "error_node",
+                "value": "AI Classify & Draft Reply",
+                "type": "string"
+              },
+              {
+                "id": "ae004",
+                "name": "error_message",
+                "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'OpenAI API error after 3 retries' }}",
+                "type": "string"
+              },
+              {
+                "id": "ae005",
+                "name": "input_data",
+                "value": "={{ JSON.stringify($json).slice(0,500) }}",
+                "type": "string"
+              }
+            ]
+          },
+          "includeOtherFields": false,
+          "options": {}
+        }
+      },
+      {
+        "id": "set-leadrow-006",
+        "name": "Prepare Lead Row",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1300,
+          180
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "lr001",
+                "name": "timestamp",
+                "value": "={{ $('Extract & Normalize Fields').item.json.received_at }}",
+                "type": "string"
+              },
+              {
+                "id": "lr002",
+                "name": "lead_id",
+                "value": "={{ $('Extract & Normalize Fields').item.json.lead_id }}",
+                "type": "string"
+              },
+              {
+                "id": "lr003",
+                "name": "source",
+                "value": "={{ $('Extract & Normalize Fields').item.json.source }}",
+                "type": "string"
+              },
+              {
+                "id": "lr004",
+                "name": "name",
+                "value": "={{ $('Extract & Normalize Fields').item.json.name }}",
+                "type": "string"
+              },
+              {
+                "id": "lr005",
+                "name": "email",
+                "value": "={{ $('Extract & Normalize Fields').item.json.email }}",
+                "type": "string"
+              },
+              {
+                "id": "lr006",
+                "name": "phone",
+                "value": "={{ $('Extract & Normalize Fields').item.json.phone }}",
+                "type": "string"
+              },
+              {
+                "id": "lr007",
+                "name": "message",
+                "value": "={{ $('Extract & Normalize Fields').item.json.message }}",
+                "type": "string"
+              },
+              {
+                "id": "lr008",
+                "name": "property_type",
+                "value": "={{ JSON.parse($json.content).property_type || 'info' }}",
+                "type": "string"
+              },
+              {
+                "id": "lr009",
+                "name": "urgency",
+                "value": "={{ JSON.parse($json.content).urgency || 'cold' }}",
+                "type": "string"
+              },
+              {
+                "id": "lr010",
+                "name": "budget_range",
+                "value": "={{ JSON.parse($json.content).budget_range || 'unknown' }}",
+                "type": "string"
+              },
+              {
+                "id": "lr011",
+                "name": "first_reply_text",
+                "value": "={{ JSON.parse($json.content).first_reply_text || '' }}",
+                "type": "string"
+              },
+              {
+                "id": "lr012",
+                "name": "first_reply_sent",
+                "value": "no",
+                "type": "string"
+              },
+              {
+                "id": "lr013",
+                "name": "first_reply_sent_at",
+                "value": "",
+                "type": "string"
+              },
+              {
+                "id": "lr014",
+                "name": "followup_count",
+                "value": "=0",
+                "type": "number"
+              },
+              {
+                "id": "lr015",
+                "name": "next_followup_date",
+                "value": "={{ DateTime.now().toFormat('yyyy-MM-dd') }}",
+                "type": "string"
+              },
+              {
+                "id": "lr016",
+                "name": "status",
+                "value": "new",
+                "type": "string"
+              },
+              {
+                "id": "lr017",
+                "name": "last_updated",
+                "value": "={{ DateTime.now().toISO() }}",
+                "type": "string"
+              }
+            ]
+          },
+          "includeOtherFields": false,
+          "options": {}
+        }
+      },
+      {
+        "id": "gs-logsheet-007",
+        "name": "Log Lead to Sheet",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1520,
+          180
+        ],
+        "onError": "continueErrorOutput",
+        "parameters": {
+          "resource": "sheet",
+          "operation": "append",
+          "documentId": {
+            "mode": "id",
+            "value": "YOUR_SPREADSHEET_ID_HERE"
+          },
+          "sheetName": {
+            "mode": "name",
+            "value": "Master Lead Log"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "timestamp": "={{ $json.timestamp }}",
+              "lead_id": "={{ $json.lead_id }}",
+              "source": "={{ $json.source }}",
+              "name": "={{ $json.name }}",
+              "email": "={{ $json.email }}",
+              "phone": "={{ $json.phone }}",
+              "message": "={{ $json.message }}",
+              "property_type": "={{ $json.property_type }}",
+              "urgency": "={{ $json.urgency }}",
+              "budget_range": "={{ $json.budget_range }}",
+              "first_reply_sent": "={{ $json.first_reply_sent }}",
+              "first_reply_sent_at": "={{ $json.first_reply_sent_at }}",
+              "followup_count": "={{ $json.followup_count }}",
+              "next_followup_date": "={{ $json.next_followup_date }}",
+              "status": "={{ $json.status }}",
+              "last_updated": "={{ $json.last_updated }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "timestamp",
+                "displayName": "timestamp",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "lead_id",
+                "displayName": "lead_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "source",
+                "displayName": "source",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "name",
+                "displayName": "name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "email",
+                "displayName": "email",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "phone",
+                "displayName": "phone",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "message",
+                "displayName": "message",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "property_type",
+                "displayName": "property_type",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "urgency",
+                "displayName": "urgency",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "budget_range",
+                "displayName": "budget_range",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "first_reply_sent",
+                "displayName": "first_reply_sent",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "first_reply_sent_at",
+                "displayName": "first_reply_sent_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "followup_count",
+                "displayName": "followup_count",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "next_followup_date",
+                "displayName": "next_followup_date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "status",
+                "displayName": "status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "last_updated",
+                "displayName": "last_updated",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              }
+            ]
+          },
+          "options": {},
+          "range": "A:P"
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "8LJ9T1qYS6NIRarT",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "set-sheetserr-010",
+        "name": "Format Sheets Error",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1520,
+          460
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "se001",
+                "name": "timestamp",
+                "value": "={{ DateTime.now().toISO() }}",
+                "type": "string"
+              },
+              {
+                "id": "se002",
+                "name": "workflow_name",
+                "value": "Real Estate Lead Intake",
+                "type": "string"
+              },
+              {
+                "id": "se003",
+                "name": "error_node",
+                "value": "Log Lead to Sheet",
+                "type": "string"
+              },
+              {
+                "id": "se004",
+                "name": "error_message",
+                "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Google Sheets write error' }}",
+                "type": "string"
+              },
+              {
+                "id": "se005",
+                "name": "input_data",
+                "value": "={{ JSON.stringify($json).slice(0,500) }}",
+                "type": "string"
+              }
+            ]
+          },
+          "includeOtherFields": false,
+          "options": {}
+        }
+      },
+      {
+        "id": "set-replyemail-008",
+        "name": "Build Reply Email",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1740,
+          180
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "re001",
+                "name": "to_email",
+                "value": "={{ $('Prepare Lead Row').item.json.email }}",
+                "type": "string"
+              },
+              {
+                "id": "re002",
+                "name": "subject",
+                "value": "=Re: Your property inquiry - we received your message",
+                "type": "string"
+              },
+              {
+                "id": "re003",
+                "name": "body_html",
+                "value": "=<p>{{ $('Prepare Lead Row').item.json.first_reply_text }}</p><br><p><em>- The Agency Team</em></p>",
+                "type": "string"
+              }
+            ]
+          },
+          "includeOtherFields": false,
+          "options": {}
+        }
+      },
+      {
+        "id": "gmail-sendreply-009",
+        "name": "Send First Reply",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          1960,
+          180
+        ],
+        "onError": "continueErrorOutput",
+        "parameters": {
+          "authentication": "oAuth2",
+          "resource": "message",
+          "operation": "send",
+          "sendTo": "={{ $json.to_email }}",
+          "subject": "={{ $json.subject }}",
+          "emailType": "html",
+          "message": "={{ $json.body_html }}"
+        },
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "I316cqTeYJH8pA6h",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "id": "set-gmaillerr-013",
+        "name": "Format Gmail Error",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1960,
+          460
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "ge001",
+                "name": "timestamp",
+                "value": "={{ DateTime.now().toISO() }}",
+                "type": "string"
+              },
+              {
+                "id": "ge002",
+                "name": "workflow_name",
+                "value": "Real Estate Lead Intake",
+                "type": "string"
+              },
+              {
+                "id": "ge003",
+                "name": "error_node",
+                "value": "Send First Reply",
+                "type": "string"
+              },
+              {
+                "id": "ge004",
+                "name": "error_message",
+                "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Gmail send error' }}",
+                "type": "string"
+              },
+              {
+                "id": "ge005",
+                "name": "input_data",
+                "value": "={{ JSON.stringify($json).slice(0,500) }}",
+                "type": "string"
+              }
+            ]
+          },
+          "includeOtherFields": false,
+          "options": {}
+        }
+      },
+      {
+        "id": "gs-errlog-014",
+        "name": "Error Log",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1300,
+          660
+        ],
+        "parameters": {
+          "resource": "sheet",
+          "operation": "append",
+          "documentId": {
+            "mode": "id",
+            "value": "YOUR_SPREADSHEET_ID_HERE"
+          },
+          "sheetName": {
+            "mode": "name",
+            "value": "Error Log"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "timestamp": "={{ $json.timestamp }}",
+              "workflow_name": "={{ $json.workflow_name }}",
+              "error_node": "={{ $json.error_node }}",
+              "error_message": "={{ $json.error_message }}",
+              "input_data": "={{ $json.input_data }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "timestamp",
+                "displayName": "timestamp",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "workflow_name",
+                "displayName": "workflow_name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "error_node",
+                "displayName": "error_node",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "error_message",
+                "displayName": "error_message",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "input_data",
+                "displayName": "input_data",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              }
+            ]
+          },
+          "options": {},
+          "range": "A:E"
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "8LJ9T1qYS6NIRarT",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Receive Lead": {
+        "main": [
+          [
+            {
+              "node": "Validate Input",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate Input": {
+        "main": [
+          [
+            {
+              "node": "Extract & Normalize Fields",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Validation Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validation Error": {
+        "main": [
+          [
+            {
+              "node": "Error Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract & Normalize Fields": {
+        "main": [
+          [
+            {
+              "node": "Build AI Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build AI Prompt": {
+        "main": [
+          [
+            {
+              "node": "AI Classify & Draft Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Classify & Draft Reply": {
+        "main": [
+          [
+            {
+              "node": "Prepare Lead Row",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Format AI Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format AI Error": {
+        "main": [
+          [
+            {
+              "node": "Error Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Lead Row": {
+        "main": [
+          [
+            {
+              "node": "Log Lead to Sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Log Lead to Sheet": {
+        "main": [
+          [
+            {
+              "node": "Build Reply Email",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Format Sheets Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Sheets Error": {
+        "main": [
+          [
+            {
+              "node": "Error Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Reply Email": {
+        "main": [
+          [
+            {
+              "node": "Send First Reply",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send First Reply": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Format Gmail Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Gmail Error": {
+        "main": [
+          [
+            {
+              "node": "Error Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Ashkan Dorkian",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-05-11T20:06:11.932Z",
+        "id": 8,
+        "workflowId": "wB6Yuyx4GhxG65hX",
+        "versionId": "4cc6b27e-1759-488a-b409-878c3f53327a",
+        "event": "activated",
+        "userId": "15de5e34-1ac5-471a-8247-3730f54f9203"
+      },
+      {
+        "createdAt": "2026-05-11T20:06:22.586Z",
+        "id": 10,
+        "workflowId": "wB6Yuyx4GhxG65hX",
+        "versionId": "4cc6b27e-1759-488a-b409-878c3f53327a",
+        "event": "activated",
+        "userId": "15de5e34-1ac5-471a-8247-3730f54f9203"
+      },
+      {
+        "createdAt": "2026-05-11T20:06:11.880Z",
+        "id": 7,
+        "workflowId": "wB6Yuyx4GhxG65hX",
+        "versionId": "4cc6b27e-1759-488a-b409-878c3f53327a",
+        "event": "deactivated",
+        "userId": "15de5e34-1ac5-471a-8247-3730f54f9203"
+      },
+      {
+        "createdAt": "2026-05-11T20:06:20.374Z",
+        "id": 9,
+        "workflowId": "wB6Yuyx4GhxG65hX",
+        "versionId": "4cc6b27e-1759-488a-b409-878c3f53327a",
+        "event": "deactivated",
+        "userId": "15de5e34-1ac5-471a-8247-3730f54f9203"
+      }
+    ]
+  }
+}

@@ -1,0 +1,897 @@
+{
+  "name": "Promemoria Scadenze Fiscali — n8n Template v2.0.0",
+  "nodes": [
+    {
+      "id": "",
+      "name": "OVERVIEW",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        60
+      ],
+      "parameters": {
+        "content": "## Promemoria Scadenze Fiscali v2.0.0\n\nRuns **daily at 08:00 Europe/Rome**. Sends a 7-day reminder and a 2-day reminder per deadline.\nGroups multiple deadlines for the same client into one email.\nUpdates rows by unique `ID Scadenza` — never matches by name.\n\n**Sheet required:** Studio Hub → tab `Scadenze`\nColumns: `ID Scadenza` | `Cliente` | `Email` | `Tipo Scadenza` | `Data Scadenza` | `Reminder 7gg Inviato` | `Data Invio 7gg` | `Reminder 2gg Inviato` | `Data Invio 2gg` | `Stato` | `Ultimo Errore`\n\n**Setup:** open the `Workflow Config` node and fill in SHEET_ID, STUDIO_EMAIL, STUDIO_NAME.\n**TEST_MODE:** set to `true` to redirect all emails to STUDIO_EMAIL — never change in production.",
+        "height": 200,
+        "width": 2900,
+        "color": 5
+      }
+    },
+    {
+      "id": "",
+      "name": "SEZIONE CONFIG",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        280
+      ],
+      "parameters": {
+        "content": "**STEP 1 — CONFIG**\nOpen `Workflow Config` and fill in:\n- SHEET_ID (Studio Hub sheet ID)\n- STUDIO_EMAIL (your studio email)\n- STUDIO_NAME (displayed in emails)\n- TEST_MODE: `true` = all emails go to STUDIO_EMAIL",
+        "height": 120,
+        "width": 530,
+        "color": 7
+      }
+    },
+    {
+      "id": "",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        200,
+        440
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "",
+      "name": "Workflow Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        440
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "",
+              "name": "SHEET_ID",
+              "value": "YOUR_GOOGLE_SHEET_ID",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "STUDIO_EMAIL",
+              "value": "you@example.com",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "STUDIO_NAME",
+              "value": "Il tuo studio",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "TEST_MODE",
+              "value": "false",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "",
+      "name": "Read Scadenze Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        440
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Workflow Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Scadenze",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets OAuth2"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "",
+      "name": "SEZIONE CLASSIFY",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        960,
+        280
+      ],
+      "parameters": {
+        "content": "**STEP 2 — CLASSIFY**\nFor each row: parse date, compute daysUntil, decide reminder type.\n- 7gg: daysUntil 3–7, 7gg not yet sent\n- 2gg: daysUntil 0–2, 2gg not yet sent\n- invalid: missing ID/date/email\n- skip: all other rows",
+        "height": 120,
+        "width": 530,
+        "color": 4
+      }
+    },
+    {
+      "id": "",
+      "name": "Classify Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        440
+      ],
+      "parameters": {
+        "jsCode": "const today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nreturn $input.all().map(item => {\n  const row = item.json;\n  const raw = (row['Data Scadenza'] || '').trim();\n  const idScadenza = (row['ID Scadenza'] || '').trim();\n  const email = (row['Email'] || '').trim();\n\n  // Validate required fields\n  if (!idScadenza) {\n    return { json: { ...row, reminderType: 'invalid', _errorMsg: 'ID Scadenza mancante' } };\n  }\n  if (!email || !email.includes('@')) {\n    return { json: { ...row, reminderType: 'invalid', _errorMsg: 'Email mancante o non valida' } };\n  }\n\n  // Parse date: DD/MM/YYYY or YYYY-MM-DD\n  let scadenza;\n  if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) {\n    const [d, m, y] = raw.split('/');\n    scadenza = new Date(`${y}-${m}-${d}`);\n  } else if (raw) {\n    scadenza = new Date(raw);\n  }\n\n  if (!raw || !scadenza || isNaN(scadenza.getTime())) {\n    return { json: { ...row, reminderType: 'invalid', _errorMsg: `Data non valida: \"${raw}\"` } };\n  }\n\n  const daysUntil = Math.ceil((scadenza - today) / 86400000);\n\n  const sent7 = (row['Reminder 7gg Inviato'] || '').trim().toUpperCase() === 'SI';\n  const sent2 = (row['Reminder 2gg Inviato'] || '').trim().toUpperCase() === 'SI';\n\n  let reminderType = 'skip';\n  if (daysUntil >= 0 && daysUntil <= 2 && !sent2) {\n    reminderType = '2gg';\n  } else if (daysUntil >= 3 && daysUntil <= 7 && !sent7) {\n    reminderType = '7gg';\n  }\n\n  return { json: { ...row, 'ID Scadenza': idScadenza, daysUntil, reminderType } };\n});"
+      }
+    },
+    {
+      "id": "",
+      "name": "Route by Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1240,
+        440
+      ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "sw-7gg",
+                    "leftValue": "={{ $json.reminderType }}",
+                    "rightValue": "7gg",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "7gg"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "sw-2gg",
+                    "leftValue": "={{ $json.reminderType }}",
+                    "rightValue": "2gg",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "2gg"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "sw-inv",
+                    "leftValue": "={{ $json.reminderType }}",
+                    "rightValue": "invalid",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "invalid"
+            }
+          ]
+        },
+        "fallbackOutput": "none"
+      }
+    },
+    {
+      "id": "",
+      "name": "SEZIONE BRANCHES",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        280
+      ],
+      "parameters": {
+        "content": "**STEP 3 — SEND**\nOutput 0 = 7gg branch · Output 1 = 2gg branch · Output 2 = invalid → error log\n\nGroup → Build email → Send → Flatten rows → Update sheet",
+        "height": 100,
+        "width": 1400,
+        "color": 4
+      }
+    },
+    {
+      "id": "",
+      "name": "Group 7gg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        440
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Workflow Config').first().json;\nconst test = cfg.TEST_MODE === 'true';\nconst studioEmail = cfg.STUDIO_EMAIL;\nconst studioName = cfg.STUDIO_NAME || 'Il tuo studio';\n\n// Group rows by Email\nconst grouped = {};\nfor (const item of $input.all()) {\n  const r = item.json;\n  const key = r.Email;\n  if (!grouped[key]) grouped[key] = { email: r.Email, cliente: r.Cliente, rows: [] };\n  grouped[key].rows.push(r);\n}\n\nreturn Object.values(grouped).map(g => {\n  const to = test ? studioEmail : g.email;\n  const deadlines = g.rows.map(r =>\n    `<tr><td style=\"padding:8px 12px;border:1px solid #e0e0e0;\">${r['Tipo Scadenza']}</td>` +\n    `<td style=\"padding:8px 12px;border:1px solid #e0e0e0;font-weight:600;color:#c62828;\">${r['Data Scadenza']}</td>` +\n    `<td style=\"padding:8px 12px;border:1px solid #e0e0e0;\">${r.daysUntil} giorni</td></tr>`\n  ).join('');\n  const subject = g.rows.length > 1\n    ? `Promemoria 7 giorni: ${g.rows.length} scadenze — ${studioName}`\n    : `Promemoria 7 giorni: ${g.rows[0]['Tipo Scadenza']} il ${g.rows[0]['Data Scadenza']}`;\n  const body = `<!DOCTYPE html><html><body style=\"font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;padding:20px;\"><div style=\"background:#e3f2fd;border-left:4px solid #1565c0;padding:16px 20px;margin-bottom:20px;border-radius:0 4px 4px 0;\"><h2 style=\"color:#0d47a1;margin:0 0 4px;font-size:18px;\">&#128197; Promemoria Scadenze — 7 giorni</h2><p style=\"margin:0;font-size:12px;color:#555;\">Notifica automatica</p></div><p style=\"font-size:15px;\">Gentile <strong>${g.cliente}</strong>,</p><p style=\"font-size:15px;\">Le ricordiamo le seguenti scadenze fiscali nei prossimi 7 giorni:</p><table style=\"width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;\"><tr style=\"background:#f5f5f5;\"><th style=\"padding:8px 12px;text-align:left;border:1px solid #e0e0e0;\">Tipo</th><th style=\"padding:8px 12px;text-align:left;border:1px solid #e0e0e0;\">Scadenza</th><th style=\"padding:8px 12px;text-align:left;border:1px solid #e0e0e0;\">Giorni</th></tr>${deadlines}</table><p style=\"font-size:15px;\">La preghiamo di contattarci per fornire la documentazione entro i termini previsti.</p><div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #eee;\"><p style=\"margin:0;font-size:15px;\">Cordiali saluti,</p><p style=\"margin:4px 0 0;font-size:15px;font-weight:600;\">${studioName}</p></div>${test ? '<p style=\"color:red;font-size:11px;margin-top:12px;\">[TEST MODE — destinatario originale: ' + g.email + ']</p>' : ''}</body></html>`;\n  return { json: { emailTo: to, emailSubject: subject, emailBody: body, rows: g.rows } };\n});"
+      }
+    },
+    {
+      "id": "",
+      "name": "Send 7gg Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        440
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.emailTo }}",
+        "subject": "={{ $json.emailSubject }}",
+        "message": "={{ $json.emailBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAILOAUTH2_CREDENTIAL_ID",
+          "name": "Gmail OAuth2"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "",
+      "name": "Flatten 7gg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        440
+      ],
+      "parameters": {
+        "jsCode": "const now = new Date().toISOString();\nconst out = [];\nfor (const item of $input.all()) {\n  for (const row of (item.json.rows || [])) {\n    out.push({ json: {\n      'ID Scadenza': row['ID Scadenza'],\n      'Reminder 7gg Inviato': 'SI',\n      'Data Invio 7gg': now,\n      'Stato': 'promemoria-7gg'\n    }});\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "",
+      "name": "Update 7gg Scadenze",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2280,
+        440
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Workflow Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Scadenze",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID Scadenza": "={{ $json['ID Scadenza'] }}",
+            "Reminder 7gg Inviato": "={{ $json['Reminder 7gg Inviato'] }}",
+            "Data Invio 7gg": "={{ $json['Data Invio 7gg'] }}",
+            "Stato": "={{ $json.Stato }}"
+          },
+          "matchingColumns": [
+            "ID Scadenza"
+          ],
+          "schema": [
+            {
+              "id": "ID Scadenza",
+              "displayName": "ID Scadenza",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reminder 7gg Inviato",
+              "displayName": "Reminder 7gg Inviato",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Data Invio 7gg",
+              "displayName": "Data Invio 7gg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Stato",
+              "displayName": "Stato",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets OAuth2"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "",
+      "name": "Group 2gg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        640
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Workflow Config').first().json;\nconst test = cfg.TEST_MODE === 'true';\nconst studioEmail = cfg.STUDIO_EMAIL;\nconst studioName = cfg.STUDIO_NAME || 'Il tuo studio';\n\nconst grouped = {};\nfor (const item of $input.all()) {\n  const r = item.json;\n  const key = r.Email;\n  if (!grouped[key]) grouped[key] = { email: r.Email, cliente: r.Cliente, rows: [] };\n  grouped[key].rows.push(r);\n}\n\nreturn Object.values(grouped).map(g => {\n  const to = test ? studioEmail : g.email;\n  const deadlines = g.rows.map(r =>\n    `<tr><td style=\"padding:8px 12px;border:1px solid #e0e0e0;\">${r['Tipo Scadenza']}</td>` +\n    `<td style=\"padding:8px 12px;border:1px solid #e0e0e0;font-weight:600;color:#b71c1c;\">${r['Data Scadenza']}</td>` +\n    `<td style=\"padding:8px 12px;border:1px solid #e0e0e0;font-weight:600;color:#b71c1c;\">${r.daysUntil} ${r.daysUntil === 1 ? 'giorno' : 'giorni'}</td></tr>`\n  ).join('');\n  const subject = g.rows.length > 1\n    ? `URGENTE — ${g.rows.length} scadenze domani/dopodomani — ${studioName}`\n    : `URGENTE — ${g.rows[0]['Tipo Scadenza']} scade il ${g.rows[0]['Data Scadenza']}`;\n  const body = `<!DOCTYPE html><html><body style=\"font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;padding:20px;\"><div style=\"background:#ffebee;border-left:4px solid #c62828;padding:16px 20px;margin-bottom:20px;border-radius:0 4px 4px 0;\"><h2 style=\"color:#b71c1c;margin:0 0 4px;font-size:18px;\">&#9888;&#65039; URGENTE — Scadenza Imminente</h2><p style=\"margin:0;font-size:12px;color:#555;\">Notifica automatica — entro 2 giorni</p></div><p style=\"font-size:15px;\">Gentile <strong>${g.cliente}</strong>,</p><p style=\"font-size:15px;\">Le segnaliamo in modo urgente le seguenti scadenze fiscali <strong>entro 2 giorni</strong>:</p><table style=\"width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;\"><tr style=\"background:#ffcdd2;\"><th style=\"padding:8px 12px;text-align:left;border:1px solid #e0e0e0;\">Tipo</th><th style=\"padding:8px 12px;text-align:left;border:1px solid #e0e0e0;\">Scadenza</th><th style=\"padding:8px 12px;text-align:left;border:1px solid #e0e0e0;\">Giorni</th></tr>${deadlines}</table><p style=\"font-size:15px;font-weight:600;color:#c62828;\">La preghiamo di contattarci immediatamente.</p><div style=\"margin-top:24px;padding-top:12px;border-top:1px solid #eee;\"><p style=\"margin:0;font-size:15px;\">Cordiali saluti,</p><p style=\"margin:4px 0 0;font-size:15px;font-weight:600;\">${studioName}</p></div>${test ? '<p style=\"color:red;font-size:11px;margin-top:12px;\">[TEST MODE — destinatario originale: ' + g.email + ']</p>' : ''}</body></html>`;\n  return { json: { emailTo: to, emailSubject: subject, emailBody: body, rows: g.rows } };\n});"
+      }
+    },
+    {
+      "id": "",
+      "name": "Send 2gg Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        640
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.emailTo }}",
+        "subject": "={{ $json.emailSubject }}",
+        "message": "={{ $json.emailBody }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAILOAUTH2_CREDENTIAL_ID",
+          "name": "Gmail OAuth2"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "",
+      "name": "Flatten 2gg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        640
+      ],
+      "parameters": {
+        "jsCode": "const now = new Date().toISOString();\nconst out = [];\nfor (const item of $input.all()) {\n  for (const row of (item.json.rows || [])) {\n    out.push({ json: {\n      'ID Scadenza': row['ID Scadenza'],\n      'Reminder 2gg Inviato': 'SI',\n      'Data Invio 2gg': now,\n      'Stato': 'promemoria-2gg'\n    }});\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "",
+      "name": "Update 2gg Scadenze",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2280,
+        640
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Workflow Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Scadenze",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID Scadenza": "={{ $json['ID Scadenza'] }}",
+            "Reminder 2gg Inviato": "={{ $json['Reminder 2gg Inviato'] }}",
+            "Data Invio 2gg": "={{ $json['Data Invio 2gg'] }}",
+            "Stato": "={{ $json.Stato }}"
+          },
+          "matchingColumns": [
+            "ID Scadenza"
+          ],
+          "schema": [
+            {
+              "id": "ID Scadenza",
+              "displayName": "ID Scadenza",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reminder 2gg Inviato",
+              "displayName": "Reminder 2gg Inviato",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Data Invio 2gg",
+              "displayName": "Data Invio 2gg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Stato",
+              "displayName": "Stato",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets OAuth2"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "",
+      "name": "SEZIONE ERRORS",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        680,
+        820
+      ],
+      "parameters": {
+        "content": "**ERROR SINK**\nAll node failures route here. Check tab `Errori` in your Studio Hub sheet weekly.\n`Format Error` handles API failures · `Format Invalid` handles bad row data.",
+        "height": 80,
+        "width": 1700,
+        "color": 3
+      }
+    },
+    {
+      "id": "",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        940
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "error_node",
+              "value": "={{ $json.error ? 'API error' : 'unknown' }}",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "error_message",
+              "value": "={{ $json.error ? $json.error.message : 'Errore sconosciuto' }}",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "cliente",
+              "value": "={{ $json.Cliente || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($json).slice(0, 300) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "",
+      "name": "Log Errori",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        980,
+        940
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Workflow Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Errori",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    },
+    {
+      "id": "",
+      "name": "Format Invalid",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1240,
+        940
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "workflow_name",
+              "value": "={{ $workflow.name }}",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "error_node",
+              "value": "Classify Rows",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "error_message",
+              "value": "={{ $json._errorMsg || 'Riga non valida' }}",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "cliente",
+              "value": "={{ $json.Cliente || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($json).slice(0, 300) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Workflow Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Config": {
+      "main": [
+        [
+          {
+            "node": "Read Scadenze Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Scadenze Sheet": {
+      "main": [
+        [
+          {
+            "node": "Classify Rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Rows": {
+      "main": [
+        [
+          {
+            "node": "Route by Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Type": {
+      "main": [
+        [
+          {
+            "node": "Group 7gg",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Group 2gg",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group 7gg": {
+      "main": [
+        [
+          {
+            "node": "Send 7gg Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send 7gg Email": {
+      "main": [
+        [
+          {
+            "node": "Flatten 7gg",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten 7gg": {
+      "main": [
+        [
+          {
+            "node": "Update 7gg Scadenze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update 7gg Scadenze": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group 2gg": {
+      "main": [
+        [
+          {
+            "node": "Send 2gg Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send 2gg Email": {
+      "main": [
+        [
+          {
+            "node": "Flatten 2gg",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten 2gg": {
+      "main": [
+        [
+          {
+            "node": "Update 2gg Scadenze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update 2gg Scadenze": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error": {
+      "main": [
+        [
+          {
+            "node": "Log Errori",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Invalid": {
+      "main": [
+        [
+          {
+            "node": "Log Errori",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Rome",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

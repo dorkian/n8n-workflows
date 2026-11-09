@@ -1,0 +1,345 @@
+[
+  {
+    "slug": "ai-weekly-content-publisher",
+    "title": "AI Weekly Content Publisher with Telegram Approval",
+    "tagline": "Two AI agents write and edit a weekly post. You approve in Telegram. Then it publishes.",
+    "language": "en",
+    "persona": "Marketers, creators, agencies",
+    "description": "One model drafts the post, a second model edits it, an image is generated, and a Telegram approval loop lets a human accept or request changes to the text and the image separately. Nothing is published without approval.",
+    "patterns": [
+      "human-in-the-loop approval",
+      "multi-agent drafting",
+      "wait-for-reply loop"
+    ],
+    "workflows": [
+      {
+        "file": "workflow.json",
+        "diagram": "diagram.svg",
+        "name": "AI Weekly Content Publisher with Telegram Approval",
+        "nodes": 27,
+        "triggers": [
+          "scheduleTrigger"
+        ],
+        "credentials": [
+          "googleSheetsOAuth2Api",
+          "httpBasicAuth",
+          "httpHeaderAuth",
+          "openAiApi",
+          "telegramApi"
+        ],
+        "node_types": [
+          "googleSheets",
+          "httpRequest",
+          "scheduleTrigger",
+          "telegram"
+        ]
+      }
+    ],
+    "total_nodes": 27,
+    "credentials": [
+      "googleSheetsOAuth2Api",
+      "httpBasicAuth",
+      "httpHeaderAuth",
+      "openAiApi",
+      "telegramApi"
+    ]
+  },
+  {
+    "slug": "b2b-lead-enrichment-sequencing",
+    "title": "B2B Outbound Lead Enrichment & Sequencing",
+    "tagline": "Discover leads, enrich them, generate personalized copy and push them into an outbound sequence.",
+    "language": "en",
+    "persona": "B2B sales and marketing",
+    "description": "A lead pipeline: discovery from Apollo, company enrichment from Clay, sales-signal detection, personalized email hooks from an LLM, sync to HubSpot, and injection into Instantly campaigns. A reply webhook closes the loop.",
+    "patterns": [
+      "enrichment pipeline",
+      "AI personalization",
+      "batch processing",
+      "reply webhook"
+    ],
+    "workflows": [
+      {
+        "file": "workflow.json",
+        "diagram": "diagram.svg",
+        "name": "Signal-Based B2B Lead Enrichment & Sequencing — n8n Template",
+        "nodes": 34,
+        "triggers": [
+          "googleSheetsTrigger",
+          "webhook"
+        ],
+        "credentials": [
+          "googleSheetsOAuth2Api",
+          "googleSheetsTriggerOAuth2Api",
+          "httpHeaderAuth",
+          "hubspotApi",
+          "openAiApi"
+        ],
+        "node_types": [
+          "googleSheets",
+          "googleSheetsTrigger",
+          "httpRequest",
+          "webhook"
+        ]
+      }
+    ],
+    "total_nodes": 34,
+    "credentials": [
+      "googleSheetsOAuth2Api",
+      "googleSheetsTriggerOAuth2Api",
+      "httpHeaderAuth",
+      "hubspotApi",
+      "openAiApi"
+    ]
+  },
+  {
+    "slug": "promemoria-scadenze-fiscali",
+    "title": "Promemoria Scadenze Fiscali",
+    "tagline": "Automatic email reminders 7 days and 2 days before each client deadline. Italian.",
+    "language": "it",
+    "persona": "Italian accountants and tax consultants",
+    "description": "Every morning the workflow reads a Google Sheet of deadlines and sends a blue reminder 7 to 3 days before each due date and a red urgent one 2 to 0 days before. Several deadlines for the same client on the same day go out in one email. Each send is written back to the sheet so nothing is sent twice, and rows with a missing ID, email or date are logged to an Errori tab instead. A TEST_MODE flag redirects every email to the studio address. There is no hardcoded tax calendar: deadlines come from your own sheet, so it works for F24, IVA, INPS and any other type.",
+    "patterns": [
+      "scheduled reminders",
+      "grouped notifications",
+      "send-once flags written back to the sheet",
+      "test mode",
+      "spreadsheet as database"
+    ],
+    "extra_docs": [
+      {
+        "label": "Guida completa in italiano",
+        "file": "README.it.md"
+      }
+    ],
+    "workflows": [
+      {
+        "file": "workflow.json",
+        "diagram": "diagram.svg",
+        "name": "Promemoria Scadenze Fiscali — n8n Template v2.0.0",
+        "nodes": 16,
+        "triggers": [
+          "scheduleTrigger"
+        ],
+        "credentials": [
+          "gmailOAuth2",
+          "googleSheetsOAuth2Api"
+        ],
+        "node_types": [
+          "gmail",
+          "googleSheets",
+          "scheduleTrigger"
+        ]
+      }
+    ],
+    "total_nodes": 16,
+    "credentials": [
+      "gmailOAuth2",
+      "googleSheetsOAuth2Api"
+    ]
+  },
+  {
+    "slug": "real-estate-lead-intake",
+    "title": "Real Estate Lead Capture, Reply & Follow-Up",
+    "tagline": "Capture every inquiry, reply within seconds and follow up for several days, automatically.",
+    "language": "en",
+    "persona": "Real estate",
+    "description": "Two workflows. Intake: a webhook receives a lead from any form, an LLM classifies urgency and property type, the lead is logged to Google Sheets and a personalized reply is sent. Follow-up: a daily schedule sends timed follow-ups to active leads and a morning digest.",
+    "patterns": [
+      "two-workflow design",
+      "AI classification",
+      "scheduled follow-up",
+      "daily digest"
+    ],
+    "workflows": [
+      {
+        "file": "workflow-followup.json",
+        "diagram": "diagram-followup.svg",
+        "name": "Real Estate Daily Follow-up & Digest — n8n Template",
+        "nodes": 16,
+        "triggers": [
+          "scheduleTrigger"
+        ],
+        "credentials": [
+          "gmailOAuth2",
+          "googleSheetsOAuth2Api",
+          "openAiApi"
+        ],
+        "node_types": [
+          "gmail",
+          "googleSheets",
+          "openAi",
+          "scheduleTrigger"
+        ]
+      },
+      {
+        "file": "workflow-intake.json",
+        "diagram": "diagram-intake.svg",
+        "name": "Real Estate Lead Intake — n8n Template",
+        "nodes": 14,
+        "triggers": [
+          "webhook"
+        ],
+        "credentials": [
+          "gmailOAuth2",
+          "googleSheetsOAuth2Api",
+          "openAiApi"
+        ],
+        "node_types": [
+          "gmail",
+          "googleSheets",
+          "openAi",
+          "webhook"
+        ]
+      }
+    ],
+    "total_nodes": 30,
+    "credentials": [
+      "gmailOAuth2",
+      "googleSheetsOAuth2Api",
+      "openAiApi"
+    ]
+  },
+  {
+    "slug": "real-estate-lead-response",
+    "title": "Real Estate Instant Lead Response & AI Qualifier",
+    "tagline": "Turn an inbound lead into a scored CRM contact and an instant SMS reply.",
+    "language": "en",
+    "persona": "Real estate",
+    "description": "A webhook receives a new lead. Fields are validated, an LLM classifies intent, a lead score is computed, the HubSpot contact is created or updated, and an SMS reply goes out through Twilio. Validation, CRM and AI-timeout failures each have their own error branch that logs to a Google Sheet.",
+    "patterns": [
+      "webhook trigger",
+      "AI classification and scoring",
+      "CRM upsert",
+      "dedicated error branches"
+    ],
+    "workflows": [
+      {
+        "file": "workflow.json",
+        "diagram": "diagram.svg",
+        "name": "Real Estate Instant Lead Response & AI Qualifier — v1.0.0",
+        "nodes": 19,
+        "triggers": [
+          "webhook"
+        ],
+        "credentials": [],
+        "node_types": [
+          "googleSheets",
+          "httpRequest",
+          "openAi",
+          "twilio",
+          "webhook"
+        ]
+      }
+    ],
+    "total_nodes": 19,
+    "credentials": []
+  },
+  {
+    "slug": "sales-call-analyzer",
+    "title": "Sales Call Analyzer",
+    "tagline": "Transcribe a finished call, extract sentiment, deal stage and objections, and write the result to your CRM.",
+    "language": "en",
+    "persona": "Sales teams",
+    "description": "When a call ends the recording is transcribed with Otter.ai, an LLM extracts sentiment, deal stage and objections, and the CRM deal is updated with a follow-up task and a log row. A confidence check sends low-confidence results to an error log instead of writing them to the CRM. Optional Slack alert. Two alternative editions ship: HubSpot and Pipedrive.",
+    "patterns": [
+      "confidence-threshold fallback",
+      "AI extraction",
+      "CRM sync",
+      "two CRM editions"
+    ],
+    "alternatives": true,
+    "workflows": [
+      {
+        "file": "workflow-hubspot.json",
+        "diagram": "diagram-hubspot.svg",
+        "name": "Sales Call Analyzer - HubSpot Edition",
+        "nodes": 12,
+        "triggers": [
+          "webhook"
+        ],
+        "credentials": [
+          "googleSheetsOAuth2",
+          "hubspotApi",
+          "openAiApi",
+          "otteriKey"
+        ],
+        "node_types": [
+          "googleSheets",
+          "httpRequest",
+          "hubspot",
+          "openai",
+          "slack",
+          "webhook"
+        ]
+      },
+      {
+        "file": "workflow-pipedrive.json",
+        "diagram": "diagram-pipedrive.svg",
+        "name": "Sales Call Analyzer - Pipedrive Edition",
+        "nodes": 12,
+        "triggers": [
+          "webhook"
+        ],
+        "credentials": [
+          "googleSheetsOAuth2",
+          "openAiApi",
+          "otteriKey",
+          "pipedriveApi"
+        ],
+        "node_types": [
+          "googleSheets",
+          "httpRequest",
+          "openai",
+          "pipedrive",
+          "slack",
+          "webhook"
+        ]
+      }
+    ],
+    "total_nodes": 12,
+    "credentials": [
+      "googleSheetsOAuth2",
+      "hubspotApi",
+      "openAiApi",
+      "otteriKey",
+      "pipedriveApi"
+    ]
+  },
+  {
+    "slug": "white-label-weekly-reports",
+    "title": "White-Label Weekly Client Reports",
+    "tagline": "Email every client a branded PDF performance report every Monday, automatically.",
+    "language": "en",
+    "persona": "Performance-marketing and lead-gen agencies",
+    "description": "Every Monday the workflow reads a client roster from Google Sheets and, per client, pulls metrics from HubSpot, Meta Ads and Google Ads, has an LLM write a short performance commentary, renders a branded PDF through PDFShift and sends it by Gmail. Failures are logged to a sheet and alerted in Slack. Meta and Google Ads are optional; their metrics show as 0 if skipped.",
+    "patterns": [
+      "schedule trigger",
+      "loop per client",
+      "parallel metric sources with graceful degradation",
+      "AI commentary",
+      "PDF rendering",
+      "error log and Slack alert"
+    ],
+    "workflows": [
+      {
+        "file": "workflow.json",
+        "diagram": "diagram.svg",
+        "name": "White-Label Weekly Client Report Generator",
+        "nodes": 19,
+        "triggers": [
+          "scheduleTrigger"
+        ],
+        "credentials": [],
+        "node_types": [
+          "gmail",
+          "googleSheets",
+          "httpRequest",
+          "scheduleTrigger",
+          "slack"
+        ]
+      }
+    ],
+    "total_nodes": 19,
+    "credentials": []
+  }
+]

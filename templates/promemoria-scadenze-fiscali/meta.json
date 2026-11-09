@@ -1,0 +1,20 @@
+{
+  "title": "Promemoria Scadenze Fiscali",
+  "tagline": "Automatic email reminders 7 days and 2 days before each client deadline. Italian.",
+  "language": "it",
+  "persona": "Italian accountants and tax consultants",
+  "description": "Every morning the workflow reads a Google Sheet of deadlines and sends a blue reminder 7 to 3 days before each due date and a red urgent one 2 to 0 days before. Several deadlines for the same client on the same day go out in one email. Each send is written back to the sheet so nothing is sent twice, and rows with a missing ID, email or date are logged to an Errori tab instead. A TEST_MODE flag redirects every email to the studio address. There is no hardcoded tax calendar: deadlines come from your own sheet, so it works for F24, IVA, INPS and any other type.",
+  "patterns": [
+    "scheduled reminders",
+    "grouped notifications",
+    "send-once flags written back to the sheet",
+    "test mode",
+    "spreadsheet as database"
+  ],
+  "extra_docs": [
+    {
+      "label": "Guida completa in italiano",
+      "file": "README.it.md"
+    }
+  ]
+}

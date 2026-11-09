@@ -1,0 +1,865 @@
+{
+  "name": "Real Estate Daily Follow-up & Digest — n8n Template",
+  "description": null,
+  "nodes": [
+    {
+      "id": "sticky-wf2-s01",
+      "name": "WHAT THIS WORKFLOW DOES",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        60
+      ],
+      "parameters": {
+        "content": "## Real Estate Daily Follow-up & Digest\n\nRuns every morning at 8 AM. Sends personalized follow-up emails to active leads on days 1, 3, and 5 after first contact. Then emails you a daily digest.\n\n**Pair with:** Real Estate Lead Intake workflow (WF1).",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      }
+    },
+    {
+      "id": "sticky-wf2-s02",
+      "name": "SET YOUR SPREADSHEET",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        300,
+        60
+      ],
+      "parameters": {
+        "content": "**Set Your Spreadsheet**\n\nConnect your Google Sheets credential and paste the spreadsheet ID in the 'Fetch Active Leads', 'Update Lead Row', and 'Error Log' nodes. Must be the same sheet WF1 writes to.",
+        "height": 110,
+        "width": 320,
+        "color": 3
+      }
+    },
+    {
+      "id": "sticky-wf2-s03",
+      "name": "FOLLOW-UP SCHEDULE",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        60
+      ],
+      "parameters": {
+        "content": "**Follow-up Schedule**\n\nDefault: Day 1 (friendly), Day 3 (value-add), Day 5 (gentle close). Edit the 'Filter Due Leads' Code node to change the max follow-up count (default 3). Leads with 3 follow-ups auto-close.",
+        "height": 110,
+        "width": 340,
+        "color": 4
+      }
+    },
+    {
+      "id": "sticky-wf2-s04",
+      "name": "CUSTOMIZE FOLLOW-UP TONE",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        60
+      ],
+      "parameters": {
+        "content": "**Customize Follow-up Tone**\n\nThree tone templates in 'Build Follow-up Prompt': Day 1 (friendly first touch), Day 3 (new listings value-add), Day 5 (gentle close). Edit the expression values to match your agency voice.",
+        "height": 110,
+        "width": 370,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky-wf2-s05",
+      "name": "CONFIGURE DIGEST RECIPIENT",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2500,
+        60
+      ],
+      "parameters": {
+        "content": "**Configure Digest Recipient**\n\nSet your own email address in the 'Send Daily Digest' Gmail node (sendTo field). The digest arrives every morning with follow-up count.",
+        "height": 110,
+        "width": 340,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky-wf2-s06",
+      "name": "ERROR BRANCHES",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        300,
+        590
+      ],
+      "parameters": {
+        "content": "**Error Branches**\n\nAPI errors during the follow-up loop are logged but do NOT stop the entire loop - the next lead still gets processed. All errors land in the Error Log sheet.",
+        "height": 100,
+        "width": 500,
+        "color": 1
+      }
+    },
+    {
+      "id": "sched-daily-001",
+      "name": "Daily 8 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "gs-fetchleads-002",
+      "name": "Fetch Active Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        420,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_SPREADSHEET_ID_HERE"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Master Lead Log"
+        },
+        "range": "A:F",
+        "filtersUI": {},
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "set-readerror-003",
+      "name": "Format Read Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        420,
+        460
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "re001",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "re002",
+              "name": "workflow_name",
+              "value": "Real Estate Daily Follow-up & Digest",
+              "type": "string"
+            },
+            {
+              "id": "re003",
+              "name": "error_node",
+              "value": "Fetch Active Leads",
+              "type": "string"
+            },
+            {
+              "id": "re004",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Google Sheets read error' }}",
+              "type": "string"
+            },
+            {
+              "id": "re005",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($json).slice(0,500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "code-filter-004",
+      "name": "Filter Due Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const today = DateTime.now().toFormat('yyyy-MM-dd');\nconst allRows = $input.all().map(function(i) { return i.json; });\nconst allActive = allRows.filter(function(r) {\n  return r.status === 'new' || r.status === 'active';\n});\nconst dueTodayLeads = allRows.filter(function(r) {\n  return r.next_followup_date === today\n    && Number(r.followup_count || 0) < 3\n    && r.status !== 'closed'\n    && r.status !== 'unsubscribed';\n});\nreturn [{\n  json: {\n    today: today,\n    due_today: dueTodayLeads,\n    due_count: dueTodayLeads.length,\n    total_active: allActive.length\n  }\n}];"
+      }
+    },
+    {
+      "id": "if-anydue-005",
+      "name": "Any Due Today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        860,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-any-due",
+              "leftValue": "={{ $json.due_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code-split-006",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst today = data.today;\nconst total_active = data.total_active;\nif (!data.due_today || data.due_today.length === 0) {\n  return [];\n}\nreturn data.due_today.map(function(lead) {\n  return { json: Object.assign({}, lead, { today: today, total_active: total_active }) };\n});"
+      }
+    },
+    {
+      "id": "set-fuprompt-007",
+      "name": "Build Follow-up Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fp001",
+              "name": "followup_prompt",
+              "value": "={{ Number($json.followup_count) === 0 ? 'Write a brief warm follow-up email to ' + $json.name + ' about their property inquiry. Budget: ' + $json.budget_range + '. First follow-up (1 day after first contact). Friendly, offer to schedule a call or viewing. 3-4 sentences. No lists. Sign off as The Team.' : Number($json.followup_count) === 1 ? 'Write a follow-up email to ' + $json.name + ' adding value - mention the property market moves fast and you have new listings matching their budget of ' + $json.budget_range + '. Under 4 sentences. Not pushy. Sign off as The Team.' : 'Write a gentle final follow-up to ' + $json.name + '. Let them know this will be your last message unless they reach out. Leave the door open warmly. 2-3 sentences max. Sign off as The Team.' }}",
+              "type": "string"
+            },
+            {
+              "id": "fp002",
+              "name": "followup_subject",
+              "value": "={{ Number($json.followup_count) === 0 ? 'Following up on your property inquiry, ' + $json.name : Number($json.followup_count) === 1 ? 'New listings matching your search, ' + $json.name : 'Still here when you are ready, ' + $json.name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-followup-008",
+      "name": "Draft Follow-up Email",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "resource": "chat",
+        "chatModel": "gpt-4o-mini",
+        "simplifyOutput": true,
+        "maxTokens": 400,
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are a helpful real estate assistant. Write warm, professional follow-up emails. Plain text only, no HTML tags."
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.followup_prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAIAPI_CREDENTIAL_ID",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "set-aierr-009",
+      "name": "Format AI Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1520,
+        460
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ae001",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "ae002",
+              "name": "workflow_name",
+              "value": "Real Estate Daily Follow-up & Digest",
+              "type": "string"
+            },
+            {
+              "id": "ae003",
+              "name": "error_node",
+              "value": "Draft Follow-up Email",
+              "type": "string"
+            },
+            {
+              "id": "ae004",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'OpenAI API error after 3 retries' }}",
+              "type": "string"
+            },
+            {
+              "id": "ae005",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($json).slice(0,500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "gmail-followup-010",
+      "name": "Send Follow-up Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1740,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('Build Follow-up Prompt').item.json.email }}",
+        "subject": "={{ $('Build Follow-up Prompt').item.json.followup_subject }}",
+        "emailType": "text",
+        "message": "={{ $json.content }}"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAILOAUTH2_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "set-gmaillerr-011",
+      "name": "Format Gmail Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1740,
+        460
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ge001",
+              "name": "timestamp",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "ge002",
+              "name": "workflow_name",
+              "value": "Real Estate Daily Follow-up & Digest",
+              "type": "string"
+            },
+            {
+              "id": "ge003",
+              "name": "error_node",
+              "value": "Send Follow-up Email",
+              "type": "string"
+            },
+            {
+              "id": "ge004",
+              "name": "error_message",
+              "value": "={{ ($json.error && $json.error.message) ? $json.error.message : 'Gmail send error' }}",
+              "type": "string"
+            },
+            {
+              "id": "ge005",
+              "name": "input_data",
+              "value": "={{ JSON.stringify($json).slice(0,500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "set-updateprep-012",
+      "name": "Prepare Update Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1960,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "up001",
+              "name": "lead_id",
+              "value": "={{ $('Build Follow-up Prompt').item.json.lead_id }}",
+              "type": "string"
+            },
+            {
+              "id": "up002",
+              "name": "followup_count",
+              "value": "={{ Number($('Build Follow-up Prompt').item.json.followup_count) + 1 }}",
+              "type": "number"
+            },
+            {
+              "id": "up003",
+              "name": "next_followup_date",
+              "value": "={{ (Number($('Build Follow-up Prompt').item.json.followup_count) + 1) >= 3 ? '' : DateTime.now().plus({days: 2}).toFormat('yyyy-MM-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "up004",
+              "name": "status",
+              "value": "={{ (Number($('Build Follow-up Prompt').item.json.followup_count) + 1) >= 3 ? 'closed' : 'active' }}",
+              "type": "string"
+            },
+            {
+              "id": "up005",
+              "name": "last_updated",
+              "value": "={{ DateTime.now().toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      }
+    },
+    {
+      "id": "gs-update-013",
+      "name": "Update Lead Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2180,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_SPREADSHEET_ID_HERE"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Master Lead Log"
+        },
+        "range": "A:F",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "followup_count": "={{ $json.followup_count }}",
+            "next_followup_date": "={{ $json.next_followup_date }}",
+            "status": "={{ $json.status }}",
+            "last_updated": "={{ $json.last_updated }}"
+          },
+          "matchingColumns": [
+            "lead_id"
+          ],
+          "schema": [
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "followup_count",
+              "displayName": "followup_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "next_followup_date",
+              "displayName": "next_followup_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "last_updated",
+              "displayName": "last_updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "code-digest-014",
+      "name": "Prepare Digest Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst today = DateTime.now().toFormat('yyyy-MM-dd');\nconst count = items.length;\nreturn [{\n  json: {\n    today: today,\n    followed_up_count: count,\n    digest_subject: 'Daily Lead Digest - ' + today,\n    digest_body: '<h2>Daily Lead Digest &mdash; ' + today + '</h2>' +\n      '<p><strong>Follow-up emails sent today:</strong> ' + count + '</p>' +\n      '<p>Check your Master Lead Log Google Sheet for full details on all active leads.</p>' +\n      '<p><em>Powered by Real Estate Lead Recovery &mdash; n8n Template</em></p>'\n  }\n}];"
+      }
+    },
+    {
+      "id": "gmail-digest-015",
+      "name": "Send Daily Digest",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2620,
+        300
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "YOUR_AGENT_EMAIL@example.com",
+        "subject": "={{ $json.digest_subject }}",
+        "emailType": "html",
+        "message": "={{ $json.digest_body }}"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAILOAUTH2_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "gs-errlog-016",
+      "name": "Error Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1080,
+        660
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_SPREADSHEET_ID_HERE"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "Error Log"
+        },
+        "range": "A:F",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GOOGLESHEETSOAUTH2API_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 8 AM": {
+      "main": [
+        [
+          {
+            "node": "Fetch Active Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Active Leads": {
+      "main": [
+        [
+          {
+            "node": "Filter Due Leads",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Read Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Read Error": {
+      "main": [
+        [
+          {
+            "node": "Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Due Leads": {
+      "main": [
+        [
+          {
+            "node": "Any Due Today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Due Today?": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Build Follow-up Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Follow-up Prompt": {
+      "main": [
+        [
+          {
+            "node": "Draft Follow-up Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Follow-up Email": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-up Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format AI Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format AI Error": {
+      "main": [
+        [
+          {
+            "node": "Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-up Email": {
+      "main": [
+        [
+          {
+            "node": "Prepare Update Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Gmail Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Gmail Error": {
+      "main": [
+        [
+          {
+            "node": "Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Update Data": {
+      "main": [
+        [
+          {
+            "node": "Update Lead Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Lead Row": {
+      "main": [
+        [
+          {
+            "node": "Prepare Digest Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Digest Data": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "activeVersionId": null,
+  "versionCounter": 3,
+  "activeVersion": null
+}

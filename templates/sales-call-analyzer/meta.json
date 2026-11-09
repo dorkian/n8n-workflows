@@ -1,0 +1,14 @@
+{
+  "title": "Sales Call Analyzer",
+  "tagline": "Transcribe a finished call, extract sentiment, deal stage and objections, and write the result to your CRM.",
+  "language": "en",
+  "persona": "Sales teams",
+  "description": "When a call ends the recording is transcribed with Otter.ai, an LLM extracts sentiment, deal stage and objections, and the CRM deal is updated with a follow-up task and a log row. A confidence check sends low-confidence results to an error log instead of writing them to the CRM. Optional Slack alert. Two alternative editions ship: HubSpot and Pipedrive.",
+  "patterns": [
+    "confidence-threshold fallback",
+    "AI extraction",
+    "CRM sync",
+    "two CRM editions"
+  ],
+  "alternatives": true
+}
